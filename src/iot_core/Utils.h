@@ -171,9 +171,11 @@ public:
 
 private:
   Type _string;
+  size_t _length;
 
 public:
-  ConstString(Type string) : _string(string) {}
+  ConstString(Type string) : ConstString(string, strlen(string)) {}
+  ConstString(Type string, size_t length) : _string(string), _length(length) {}
 
   size_t copy(char* dest, size_t maxLength, size_t offset = 0u, size_t* destLength = nullptr) const {
     const size_t length = len(offset);
@@ -189,7 +191,7 @@ public:
     return length;
   }
   
-  size_t len(size_t offset = 0u) const { return strlen(_string + offset); }
+  size_t len(size_t offset = 0u) const { return _length - offset; }
 };
 
 template<>
@@ -199,9 +201,11 @@ public:
 
 private:
   Type _string;
+  size_t _length;
 
 public:
-  ConstString(Type string) : _string(string) {}
+  ConstString(Type string) : ConstString(string, strlen_P((PGM_P)string)) {}
+  ConstString(Type string, size_t length) : _string(string), _length(length) {}
 
   size_t copy(char* dest, size_t maxLength, size_t offset = 0u, size_t* destLength = nullptr) const {
     const size_t length = len(offset);
@@ -217,7 +221,7 @@ public:
     return length;
   }
   
-  size_t len(size_t offset = 0u) const { return strlen_P((PGM_P)_string + offset); }
+  size_t len(size_t offset = 0u) const { return _length - offset; }
 };
 
 template<typename T>
@@ -226,6 +230,11 @@ using remove_const_ptr = typename std::remove_const<typename std::remove_pointer
 template<typename T>
 ConstString<remove_const_ptr<T>> str(T string) {
   return {string};
+}
+
+template<typename T>
+ConstString<remove_const_ptr<T>> data(T string, size_t length) {
+  return {string, length};
 }
 
 template<typename T>

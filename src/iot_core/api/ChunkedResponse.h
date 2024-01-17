@@ -1,9 +1,9 @@
-#ifndef IOT_CORE_CHUNKEDRESPONSE_H_
-#define IOT_CORE_CHUNKEDRESPONSE_H_
+#ifndef IOT_CORE_API_CHUNKEDRESPONSE_H_
+#define IOT_CORE_API_CHUNKEDRESPONSE_H_
 
-#include "Utils.h"
+#include <iot_core/Utils.h>
 
-namespace iot_core {
+namespace iot_core::api {
 
 /**
  * Class template to send a chunked HTTP response to a client.
@@ -17,6 +17,7 @@ class ChunkedResponse final {
   T& _server;
   char _buffer[BUFFER_SIZE + 1u] = {}; // +1 for null-termination
   size_t _size = 0u;
+  bool _valid = false;
 
 public:
   explicit ChunkedResponse(T& server) : _server(server) {}
@@ -25,19 +26,23 @@ public:
     return _size;
   }
 
+  bool valid() const {
+    return _valid;
+  }
+
   void clear() {
     _size = 0u;
   }
 
   template<typename TText>
   bool begin(int code, const TText* contentType) {
-    bool ok = _server.chunkedResponseModeStart(code, contentType);
     clear();
-    return ok;
+    _valid = _server.chunkedResponseModeStart(code, contentType);
+    return _valid;
   }
 
   void flush() {
-    if (_size == 0u) {
+    if (!_valid || _size == 0u) {
       return;
     }
 
@@ -46,9 +51,13 @@ public:
   }
 
   void end() {
+    if (!_valid) {
+      return;
+    }
+
     flush();
     _server.chunkedResponseFinalize();
-    clear();
+    _valid = false;
   }
 
   template<typename X>
@@ -56,26 +65,39 @@ public:
     return write(iot_core::str(text));
   }
 
+  template<typename X>
+  size_t write(X data, size_t length) {
+    return write(iot_core::data(data, length));
+  }
+
   template<typename U>
-  size_t write(iot_core::ConstString<U> text) {
+  size_t write(iot_core::ConstString<U> string) {
+    if (!_valid) {
+      return 0u;
+    }
+
     size_t offset = 0u;
     do {
       size_t maxLength = BUFFER_SIZE - _size;
-      size_t textLength = text.copy(_buffer + _size, maxLength, offset);
+      size_t stringLength = string.copy(_buffer + _size, maxLength, offset);
       
-      if (maxLength < textLength) {
+      if (maxLength < stringLength) {
         _size += maxLength;
         offset += maxLength;
         flush();
       } else {
-        _size += textLength;
+        _size += stringLength;
         break;
       }
     } while (true);
-    return text.len();
+    return string.len();
   }
 
   size_t write(char c) {
+    if (!_valid) {
+      return 0u;
+    }
+    
     if (_size >= BUFFER_SIZE) {
       flush();
     }

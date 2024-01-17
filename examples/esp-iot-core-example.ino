@@ -2,6 +2,8 @@
 //#define DEVELOPMENT_MODE
 
 #include <iot_core.h>
+#include <iot_core/api/Server.h>
+#include <iot_core/api/SystemApi.h>
 
 namespace io {
 // Switches
@@ -20,18 +22,20 @@ gpiobj::DigitalInput factoryResetPin { gpiobj::gpios::esp8266::nodemcu::D8, gpio
 gpiobj::DigitalOutput builtinLed { LED_BUILTIN, false, gpiobj::SignalMode::Inverted };
 }
 
-iot_core::System sys { "iot-core-example", "1.0.0", "ota password", io::builtinLed, io::otaEnablePin, io::updatePin, io::factoryResetPin, io::debugModePin };
+iot_core::VersionInfo VERSION { "", "1.0.0" };
+
+iot_core::System sys { "iot-core-example", VERSION, "ota password", io::builtinLed, io::otaEnablePin, io::updatePin, io::factoryResetPin, io::debugModePin };
+iot_core::api::Server api { sys };
+iot_core::api::SystemApi systemApi { sys, sys };
 
 void setup() {
-  sys.logger().log("ios", iot_core::format(F("ota=%u write=%u tx=%u debug=%u"),
+  sys.logger().log("ios", iot_core::format(F("ota=%u debug=%u"),
     io::otaEnablePin.read(),
-    io::writeEnablePin.read(),
-    io::txEnablePin.read(),
     io::debugModePin.read()
   ));
 
-  // Add components here
-  //sys.addComponent(&component);
+  sys.addComponent(&api);
+  api.addProvider(&systemApi);
 
   sys.setup();
 }

@@ -12,6 +12,7 @@
 #include "Logger.h"
 #include "DateTime.h"
 #include "Utils.h"
+#include "Version.h"
 #include <vector>
 
 // Enable measurement of chip's VCC
@@ -301,8 +302,9 @@ public:
     collector.addValue("sketchMD5", ESP.getSketchMD5().c_str());
     collector.addValue("name", name());
     collector.addValue("version", version().version_string);
-    collector.addValue("coreVersion", ESP.getCoreVersion().c_str());
-    collector.addValue("sdkVersion", ESP.getSdkVersion());
+    collector.addValue("iotCoreVersion", IOT_CORE_VERSION);
+    collector.addValue("espCoreVersion", ESP.getCoreVersion().c_str());
+    collector.addValue("espSdkVersion", ESP.getSdkVersion());
     collector.addValue("cpuFreq", format("%u", ESP.getCpuFreqMHz()));
     collector.addValue("chipVcc", format("%1.2f", ESP.getVcc() / 1000.0));
     collector.addValue("resetReason", ESP.getResetReason().c_str());

@@ -1,7 +1,7 @@
 #ifndef APPLICATIONCOMPONENT_H_
 #define APPLICATIONCOMPONENT_H_
 
-#include <iot-core/Interfaces.h>
+#include <iot_core/Interfaces.h>
 
 /**
  * Empty implementation of the IApplicationComponent to use as a copy-paste

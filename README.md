@@ -1,4 +1,4 @@
-# ESP IoT Core: Framework for implementing IoT devices based on an ESP8266/32
+# esp-iot-core: Framework for implementing IoT devices based on an ESP8266/32
 
 A framework to implement IoT devices/gateways based on the ESP8266/32 hardware.
 
@@ -6,6 +6,7 @@ Includes common functionality and infrastructure for:
 
  * Logging
  * Component configuration (with persistence)
+ * HTTP API with common endpoints for core features (e.g. logs and configuration)
  * Initial WiFi setup/configuration
  * Device/component diagnostics
  * Stream-like HTTP responses (with JSON support)

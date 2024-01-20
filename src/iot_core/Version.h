@@ -1,1 +1,1 @@
-#define IOT_CORE_VERSION "0.3.0"
+#define IOT_CORE_VERSION "0.4.0"

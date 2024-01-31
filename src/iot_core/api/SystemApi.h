@@ -12,11 +12,12 @@ namespace iot_core::api {
 
 class SystemApi final : public IProvider {
 private:
+  iot_core::Logger _logger;
   iot_core::ISystem& _system;
   iot_core::IApplicationContainer& _application;
 
 public:
-  SystemApi(iot_core::ISystem& system, iot_core::IApplicationContainer& application) : _system(system), _application(application) {}
+  SystemApi(iot_core::ISystem& system, iot_core::IApplicationContainer& application) : _logger(system.logger("api")), _system(system), _application(application) {}
 
   void setupApi(IServer& server) override {
     server.on(F("/api/system/reset"), HttpMethod::POST, [this](const IRequest&, IResponse& response) {
@@ -49,7 +50,7 @@ public:
       _application.getDiagnostics(collector);
       writer.end();
       if (writer.failed()) {
-        _system.logger().log(LogLevel::Warning, "api", "Failed to write diagnostics JSON response.");
+        _logger.log(LogLevel::Warning, "Failed to write diagnostics JSON response.");
       }
     });
 
@@ -63,7 +64,7 @@ public:
         return;
       }
       
-      _system.logger().output([&] (const char* entry) {
+      _system.logs().output([&] (const char* entry) {
         body.write(entry);
       });
     });
@@ -78,10 +79,10 @@ public:
         return;
       }
 
-      body.write(iot_core::logLevelToString(_system.logger().initialLogLevel()));
+      body.write(iot_core::logLevelToString(_system.logs().initialLogLevel()));
       body.write('\n');
 
-      for (auto entry : _system.logger().logLevels()) {
+      for (auto entry : _system.logs().logLevels()) {
         body.write(entry.first);
         body.write('=');
         body.write(iot_core::logLevelToString(entry.second));
@@ -92,26 +93,26 @@ public:
     server.on(F("/api/system/log-level"), HttpMethod::PUT, [this](const IRequest& request, IResponse& response) {
       iot_core::LogLevel logLevel = iot_core::logLevelFromString(request.body().content());
 
-      _system.logger().initialLogLevel(logLevel);
+      _system.logs().initialLogLevel(logLevel);
       
       response
         .code(ResponseCode::Ok)
         .contentType(ContentType::TextPlain)
         .sendSingleBody()
-        .write(iot_core::logLevelToString(_system.logger().initialLogLevel()));
+        .write(iot_core::logLevelToString(_system.logs().initialLogLevel()));
     });
 
     server.on(UriBraces(F("/api/system/log-level/{}")), HttpMethod::PUT, [this](const IRequest& request, IResponse& response) {
       const auto& category = request.pathArg(0);
       iot_core::LogLevel logLevel = iot_core::logLevelFromString(request.body().content());
 
-      _system.logger().logLevel(iot_core::make_static(category), logLevel);
+      _system.logs().logLevel(iot_core::make_static(category), logLevel);
       
       response
         .code(ResponseCode::Ok)
         .contentType(ContentType::TextPlain)
         .sendSingleBody()
-        .write(iot_core::logLevelToString(_system.logger().logLevel(category)));
+        .write(iot_core::logLevelToString(_system.logs().logLevel(category)));
     });
 
     server.on(F("/api/system/config"), HttpMethod::GET, [this](const IRequest&, IResponse& response) {

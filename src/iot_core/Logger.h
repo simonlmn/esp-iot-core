@@ -43,7 +43,26 @@ LogLevel logLevelFromString(const char* level, size_t length = SIZE_MAX) {
   return LogLevel::None;
 }
 
+class LogService;
+
 class Logger final {
+  LogService* _service;
+  const char* _category;
+
+public:
+  Logger(LogService& service, const char* category) : _service(&service), _category(category) {}
+
+  template<typename T>
+  void log(T message);
+
+  template<typename T, std::enable_if_t<!std::is_invocable<T>::value, bool> = true>
+  void log(LogLevel level, T message);
+
+  template<typename T, std::enable_if_t<std::is_invocable<T>::value, bool> = true>
+  void log(LogLevel level, T messageFunction);
+};
+
+class LogService final {
   static const LogLevel DEFAULT_LOG_LEVEL = LogLevel::Info;
   LogLevel _initialLogLevel = DEFAULT_LOG_LEVEL;
   ConstStrMap<LogLevel> _logLevels = {};
@@ -99,8 +118,12 @@ class Logger final {
   }
 
 public:
-  explicit Logger(Time const& uptime) : _uptime(uptime) {
+  explicit LogService(Time const& uptime) : _uptime(uptime) {
     memset(_logBuffer, LOG_ENTRY_SEPARATOR, LOG_BUFFER_SIZE);
+  }
+
+  Logger logger(const char* category) {
+    return {*this, category};
   }
 
   LogLevel initialLogLevel() const {
@@ -167,6 +190,21 @@ public:
       } while (bufferIndex != _logBufferEnd);
     }
   }
+};
+
+template<typename T>
+void Logger::log(T message) {
+  _service->log(_category, message);
+}
+
+template<typename T, std::enable_if_t<!std::is_invocable<T>::value, bool> = true>
+void Logger::log(LogLevel level, T message) {
+  _service->log(level, _category, message);
+};
+
+template<typename T, std::enable_if_t<std::is_invocable<T>::value, bool> = true>
+void Logger::log(LogLevel level, T messageFunction) {
+  _service->log(level, _category, messageFunction);
 };
 
 }

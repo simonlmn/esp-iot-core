@@ -1,12 +1,6 @@
 #ifndef IOT_CORE_DATETIME_H_
 #define IOT_CORE_DATETIME_H_
 
-#ifdef TEST_ENV
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#endif
-
 namespace iot_core {
 
 struct DateTime {

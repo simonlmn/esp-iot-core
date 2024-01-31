@@ -229,14 +229,14 @@ public:
 
 class Server final : public IServer, public IContainer, public IApplicationComponent {
 private:
-  Logger& _logger;
+  Logger _logger;
   ISystem& _system;
   std::vector<IProvider*> _providers;
   ESP8266WebServer _server;
   TimingStatistics<10u> _callStatistics;
   
 public:
-  Server(ISystem& system, int port = 80) : _logger(system.logger()), _system(system), _providers(), _server(port) {}
+  Server(ISystem& system, int port = 80) : _logger(system.logger("api")), _system(system), _providers(), _server(port) {}
   
   void on(const Uri& uri, HttpMethod method, std::function<void(const IRequest&, IResponse&)> handler) override {
     _server.on(uri, mapHttpMethod(method), _callStatistics.wrap([this,handler]() {

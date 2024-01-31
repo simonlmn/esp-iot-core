@@ -1,17 +1,17 @@
-#ifndef IOT_CORE_JSONDIAGNOSTICSCOLLECTOR_H_
-#define IOT_CORE_JSONDIAGNOSTICSCOLLECTOR_H_
+#ifndef IOT_CORE_API_JSONDIAGNOSTICSCOLLECTOR_H_
+#define IOT_CORE_API_JSONDIAGNOSTICSCOLLECTOR_H_
 
-#include "Utils.h"
+#include <iot_core/Interfaces.h>
+#include <jsons/Writer.h>
 
-namespace iot_core {
+namespace iot_core::api {
 
-template<typename JsonWriter>
 class JsonDiagnosticsCollector final : public iot_core::IDiagnosticsCollector {
 private:
-  JsonWriter& _writer;
+  jsons::IWriter& _writer;
 
 public:
-  JsonDiagnosticsCollector(JsonWriter& writer) : _writer(writer) {
+  JsonDiagnosticsCollector(jsons::IWriter& writer) : _writer(writer) {
     _writer.openObject();
   };
 
@@ -21,16 +21,13 @@ public:
   }
 
   virtual void addValue(const char* name, const char* value) {
-    _writer.propertyString(name, value);
+    _writer.property(name).string(value);
   }
 
   virtual void endSection() override {
     _writer.close();
   }
 };
-
-template<typename JsonWriter>
-JsonDiagnosticsCollector<JsonWriter> makeJsonDiagnosticsCollector(JsonWriter& writer) { return {writer}; }
 
 }
 

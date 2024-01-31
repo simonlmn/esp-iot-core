@@ -2,11 +2,11 @@
 #define IOT_CORE_API_SYSTEMAPI_H_
 
 #include <iot_core/Interfaces.h>
-#include <iot_core/JsonWriter.h>
-#include <iot_core/JsonDiagnosticsCollector.h>
 #include <iot_core/Config.h>
 #include <uri/UriBraces.h>
+#include <jsons.h>
 #include "Interfaces.h"
+#include "JsonDiagnosticsCollector.h"
 
 namespace iot_core::api {
 
@@ -44,9 +44,13 @@ public:
         return;
       }
 
-      auto writer = iot_core::makeJsonWriter(body);
-      auto collector = iot_core::makeJsonDiagnosticsCollector(writer);
+      auto writer = jsons::makeWriter(body);
+      JsonDiagnosticsCollector collector {writer};
       _application.getDiagnostics(collector);
+      writer.end();
+      if (writer.failed()) {
+        _system.logger().log(LogLevel::Warning, "api", "Failed to write diagnostics JSON response.");
+      }
     });
 
     server.on(F("/api/system/logs"), HttpMethod::GET, [this](const IRequest&, IResponse& response) {

@@ -1,7 +1,8 @@
 #ifndef IOT_CORE_API_CHUNKEDRESPONSE_H_
 #define IOT_CORE_API_CHUNKEDRESPONSE_H_
 
-#include <iot_core/Utils.h>
+#include <toolbox.h>
+#include <toolbox/Streams.h>
 
 namespace iot_core::api {
 
@@ -13,7 +14,7 @@ namespace iot_core::api {
  * size too low may reduce performance.
  */
 template<typename T, size_t BUFFER_SIZE = 512u>
-class ChunkedResponse final {
+class ChunkedResponse final : public toolbox::IOutput {
   T& _server;
   char _buffer[BUFFER_SIZE + 1u] = {}; // +1 for null-termination
   size_t _size = 0u;
@@ -21,6 +22,8 @@ class ChunkedResponse final {
 
 public:
   explicit ChunkedResponse(T& server) : _server(server) {}
+
+  ~ChunkedResponse() { end(); }
 
   size_t size() const {
     return _size;
@@ -34,10 +37,13 @@ public:
     _size = 0u;
   }
 
-  template<typename TText>
-  bool begin(int code, const TText* contentType) {
+  bool begin(int code, const toolbox::strref& contentType) {
     clear();
-    _valid = _server.chunkedResponseModeStart(code, contentType);
+    if (contentType.isInProgmem()) {
+      _valid = _server.chunkedResponseModeStart(code, contentType.fpstr());
+    } else {
+      _valid = _server.chunkedResponseModeStart(code, contentType.cstr());
+    }
     return _valid;
   }
 
@@ -60,18 +66,7 @@ public:
     _valid = false;
   }
 
-  template<typename X>
-  size_t write(X text) {
-    return write(iot_core::str(text));
-  }
-
-  template<typename X>
-  size_t write(X data, size_t length) {
-    return write(iot_core::data(data, length));
-  }
-
-  template<typename U>
-  size_t write(iot_core::ConstString<U> string) {
+  size_t write(const toolbox::strref& string) {
     if (!_valid) {
       return 0u;
     }
@@ -93,7 +88,7 @@ public:
     return string.len();
   }
 
-  size_t write(char c) {
+  size_t write(char c) override {
     if (!_valid) {
       return 0u;
     }
@@ -104,6 +99,14 @@ public:
     _buffer[_size] = c;
     _size += 1u;
     return 1u;
+  }
+
+  size_t write(const char* string) override {
+    return write(toolbox::strref{string});
+  }
+
+  size_t write(const __FlashStringHelper* string) override {
+    return write(toolbox::strref{string});
   }
 };
 

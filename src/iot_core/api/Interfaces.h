@@ -3,7 +3,8 @@
 
 #include <Uri.h> /* from ESP8266WebServer library */
 #include <functional>
-#include <iot_core/Utils.h>
+#include <toolbox.h>
+#include <toolbox/Streams.h>
 
 namespace iot_core::api {
 
@@ -55,38 +56,32 @@ enum struct ResponseCode : int {
   InsufficientStorage = 507
 };
 
-class IRequestBody {
+class IRequestBody : public toolbox::IInput {
 public:
-  virtual const char* content() const = 0;
-  virtual size_t length() const = 0;
+  virtual const toolbox::strref& contentType() const = 0;
+  virtual const toolbox::strref& content() const = 0;
 };
 
 class IRequest {
 public:
-  virtual bool hasArg(const char* name) const = 0;
-  virtual const char* arg(const char* name) const = 0;
-  virtual const char* pathArg(unsigned int i) const = 0;
+  virtual bool hasArg(const toolbox::strref& name) const = 0;
+  virtual toolbox::strref arg(const toolbox::strref& name) const = 0;
+  virtual toolbox::strref pathArg(unsigned int i) const = 0;
   virtual const IRequestBody& body() const = 0;
 };
 
-class IResponseBody {
+class IResponseBody : public toolbox::IOutput {
 public:
   virtual bool valid() const = 0;
   operator bool() const { return valid(); }
-
-  virtual size_t write(const char* text) = 0;
-  virtual size_t write(const char* data, size_t length) = 0;
-  virtual size_t write(const __FlashStringHelper* text) = 0;
-  virtual size_t write(const __FlashStringHelper* data, size_t length) = 0;
-  virtual size_t write(char c) = 0;
 };
 
 class IResponse {
 public:
   virtual IResponse& code(ResponseCode code) = 0;
   virtual IResponse& contentType(ContentType contentType) = 0;
-  virtual IResponse& contentType(const char* contentType) = 0; 
-  virtual IResponse& header(const char* name, const char* value) = 0;
+  virtual IResponse& contentType(const toolbox::strref& contentType) = 0; 
+  virtual IResponse& header(const toolbox::strref& name, const toolbox::strref& value) = 0;
   virtual IResponseBody& sendChunkedBody() = 0;
   virtual IResponseBody& sendSingleBody() = 0;
 };

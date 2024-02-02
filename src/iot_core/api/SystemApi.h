@@ -106,13 +106,13 @@ public:
       const auto& category = request.pathArg(0);
       iot_core::LogLevel logLevel = iot_core::logLevelFromString(request.body().content());
 
-      _system.logs().logLevel(iot_core::make_static(category), logLevel);
+      _system.logs().logLevel(iot_core::make_static(category.cstr()), logLevel);
       
       response
         .code(ResponseCode::Ok)
         .contentType(ContentType::TextPlain)
         .sendSingleBody()
-        .write(iot_core::logLevelToString(_system.logs().logLevel(category)));
+        .write(iot_core::logLevelToString(_system.logs().logLevel(category.cstr())));
     });
 
     server.on(F("/api/system/config"), HttpMethod::GET, [this](const IRequest&, IResponse& response) {
@@ -135,7 +135,7 @@ public:
     });
 
     server.on(F("/api/system/config"), HttpMethod::PUT, [this](const IRequest& request, IResponse& response) {
-      const char* body = request.body().content();
+      const char* body = request.body().content().cstr();
 
       iot_core::ConfigParser config {const_cast<char*>(body)};
 
@@ -162,7 +162,7 @@ public:
         return;
       }
 
-      _application.getConfig(category, [&] (const char* name, const char* value) {
+      _application.getConfig(category.cstr(), [&] (const char* name, const char* value) {
         body.write(name);
         body.write(iot_core::ConfigParser::SEPARATOR);
         body.write(value);
@@ -173,11 +173,11 @@ public:
 
     server.on(UriBraces(F("/api/system/config/{}")), HttpMethod::PUT, [this](const IRequest& request, IResponse& response) {
       const auto& category = request.pathArg(0);
-      const char* body = request.body().content();
+      const char* body = request.body().content().cstr();
 
       iot_core::ConfigParser config {const_cast<char*>(body)};
 
-      if (_application.configure(category, config)) {
+      if (_application.configure(category.cstr(), config)) {
         response
           .code(ResponseCode::Ok)
           .contentType(ContentType::TextPlain)

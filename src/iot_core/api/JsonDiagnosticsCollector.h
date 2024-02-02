@@ -15,16 +15,16 @@ public:
     _writer.openObject();
   };
 
-  virtual void beginSection(const char* name) override {
+  void beginSection(const toolbox::strref& name) override {
     _writer.property(name);
     _writer.openObject();
   }
 
-  virtual void addValue(const char* name, const char* value) {
+  void addValue(const toolbox::strref& name, const toolbox::strref& value) {
     _writer.property(name).string(value);
   }
 
-  virtual void endSection() override {
+  void endSection() override {
     _writer.close();
   }
 };

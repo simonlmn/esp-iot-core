@@ -47,18 +47,31 @@ const char* mapContentType(ContentType contentType) {
 
 class RequestBody final : public IRequestBody {
 private:
-  ESP8266WebServer& _server;
-  const String& _plainArg;
+  toolbox::strref _contentTypeHeader;
+  toolbox::strref _plainArg;
+  toolbox::StringInput _stream;
 
 public:
-  explicit RequestBody(ESP8266WebServer& server) : _server(server), _plainArg(_server.arg("plain")) {}
+  explicit RequestBody(ESP8266WebServer& server) :
+    _contentTypeHeader(server.header(FPSTR(HEADER_CONTENT_TYPE))),
+    _plainArg(server.arg("plain")),
+    _stream(_plainArg)
+  {}
 
-  const char* content() const {
-    return _plainArg.c_str();
+  const toolbox::strref& contentType() const override {
+    return _contentTypeHeader;
   }
 
-  size_t length() const override {
-    return _plainArg.length();
+  const toolbox::strref& content() const override {
+    return _plainArg;
+  }
+
+  size_t available() const override {
+    return _stream.available();
+  }
+
+  size_t read(char* buffer, size_t bufferSize) override {
+    return _stream.read(buffer, bufferSize);
   }
 };
 
@@ -66,13 +79,13 @@ class SingleResponseBody final : public IResponseBody {
 private:
   ESP8266WebServer& _server;
   int _responseCode;
-  const char* _contentType;
+  toolbox::strref _contentType;
   bool _valid;
 
 public:
   explicit SingleResponseBody(ESP8266WebServer& server) : _server(server), _responseCode(200), _contentType("text/plain"), _valid(false) {}
 
-  void begin(int code, const char* contentType) {
+  void begin(int code, const toolbox::strref& contentType) {
     _responseCode = code;
     _contentType = contentType;
     _valid = true;
@@ -84,60 +97,47 @@ public:
 
   bool valid() const override { return _valid; };
 
-  size_t write(const char* text) override {
+  size_t write(const toolbox::strref& text) {
     if (!_valid) {
       return 0u;
     }
-    _server.send(_responseCode, _contentType, text);
-    return iot_core::str(text).len();
+    if (text.isInProgmem() || _contentType.isInProgmem()) {
+      _server.send_P(_responseCode, _contentType.raw(), text.raw());
+    } else {
+      _server.send(_responseCode, _contentType.cstr(), text.cstr());
+    }
+    
+    return text.len();
   }
 
-  size_t write(const char* data, size_t length) override {
-    if (!_valid) {
-      return 0u;
-    }
-    _server.send(_responseCode, _contentType, data, length);
-    return length;
+  size_t write(const char* text) override {
+    return write(toolbox::strref{text});
   }
 
   size_t write(const __FlashStringHelper* text) override {
-    if (!_valid) {
-      return 0u;
-    }
-    _server.send_P(_responseCode, _contentType, (PGM_P)text);
-    return iot_core::str(text).len();
-  }
-
-  size_t write(const __FlashStringHelper* data, size_t length) override {
-    if (!_valid) {
-      return 0u;
-    }
-    _server.send_P(_responseCode, _contentType, (PGM_P)data, length);
-    return length;
+    return write(toolbox::strref{text});
   }
 
   size_t write(char c) override {
     if (!_valid) {
       return 0u;
     }
-    _server.send(_responseCode, _contentType, &c, 1);
+    _server.send(_responseCode, _contentType.cstr(), &c, 1);
     return 1u;
   }
 };
 
-class ChunkedResponseBody final : public IResponseBody { // maybe ChunkedResponse<> could directly implement this interface?
+class ChunkedResponseBody final : public IResponseBody {
 private:
   ChunkedResponse<ESP8266WebServer> _response;
 
 public:
   explicit ChunkedResponseBody(ESP8266WebServer& server) : _response(server) {}
-  void begin(int code, const char* contentType) { _response.begin(code, contentType); }
+  void begin(int code, const toolbox::strref& contentType) { _response.begin(code, contentType); }
   void end() { _response.end(); }
   bool valid() const override { return _response.valid(); };
   size_t write(const char* text) override { return _response.write(text); }
-  size_t write(const char* data, size_t length) override { return _response.write(data, length); }
   size_t write(const __FlashStringHelper* text) override { return _response.write(text); }
-  size_t write(const __FlashStringHelper* data, size_t length) override { return _response.write(data, length); }
   size_t write(char c) override { return _response.write(c); }
 };
 
@@ -149,16 +149,16 @@ private:
 public:
   explicit Request(ESP8266WebServer& server) : _server(server), _body(server) {}
 
-  bool hasArg(const char* name) const override {
-    return _server.hasArg(name);
+  bool hasArg(const toolbox::strref& name) const override {
+    return _server.hasArg(name.toString());
   }
 
-  const char* arg(const char* name) const override {
-    return _server.arg(name).c_str();
+  toolbox::strref arg(const toolbox::strref& name) const override {
+    return _server.arg(name.toString());
   }
 
-  const char* pathArg(unsigned int i) const override {
-    return _server.pathArg(i).c_str();
+  toolbox::strref pathArg(unsigned int i) const override {
+    return _server.pathArg(i);
   }
 
   const IRequestBody& body() const override {
@@ -172,7 +172,7 @@ private:
   SingleResponseBody _singleBody;
   ChunkedResponseBody _chunkedBody;
   int _code;
-  const char* _contentType;
+  toolbox::strref _contentType;
   
 public:
   explicit Response(ESP8266WebServer& server) : _server(server), _singleBody(server), _chunkedBody(server), _code(mapResponseCode(ResponseCode::NotImplemented)), _contentType(mapContentType(ContentType::TextPlain)) {}
@@ -183,7 +183,7 @@ public:
     } else if (_chunkedBody.valid()) {
       _chunkedBody.end();
     } else {
-      _server.send_P(_code, _contentType, "");
+      _server.send_P(_code, _contentType.cstr(), "");
     }
   }
   
@@ -197,13 +197,13 @@ public:
     return *this;
   }
 
-  IResponse& contentType(const char* contentType) override {
+  IResponse& contentType(const toolbox::strref& contentType) override {
     _contentType = contentType;
     return *this;
   }
 
-  IResponse& header(const char* name, const char* value) override {
-    _server.sendHeader(name, value);
+  IResponse& header(const toolbox::strref& name, const toolbox::strref& value) override {
+    _server.sendHeader(name.toString(), value.toString());
     return *this;
   }
   
@@ -264,6 +264,7 @@ public:
   void setup(bool /*connected*/) override {
     _server.enableCORS(true);
     _server.collectHeaders(FPSTR(HEADER_ACCEPT));
+    _server.collectHeaders(FPSTR(HEADER_CONTENT_TYPE));
 
     // generic OPTIONS reply to make "pre-flight" checks work
     on(UriGlob(F("*")), HttpMethod::OPTIONS, [](const IRequest&, IResponse& response) {  

@@ -133,83 +133,6 @@ char* format(const __FlashStringHelper* fmt, ...) {
 }
 
 template<typename T>
-class ConstString {
-};
-
-template<>
-class ConstString<char> final {
-public:
-  typedef const char* Type;
-
-private:
-  Type _string;
-  size_t _length;
-
-public:
-  ConstString(Type string) : ConstString(string, strlen(string)) {}
-  ConstString(Type string, size_t length) : _string(string), _length(length) {}
-
-  size_t copy(char* dest, size_t maxLength, size_t offset = 0u, size_t* destLength = nullptr) const {
-    const size_t length = len(offset);
-    size_t lengthToCopy = std::min(length, maxLength);
-    
-    memcpy(dest, _string + offset, lengthToCopy);
-    dest[lengthToCopy] = '\0';
-
-    if (destLength != nullptr) {
-      *destLength += lengthToCopy;
-    }
-
-    return length;
-  }
-  
-  size_t len(size_t offset = 0u) const { return _length - offset; }
-};
-
-template<>
-class ConstString<__FlashStringHelper> final {
-public:
-  typedef const __FlashStringHelper* Type;
-
-private:
-  Type _string;
-  size_t _length;
-
-public:
-  ConstString(Type string) : ConstString(string, strlen_P((PGM_P)string)) {}
-  ConstString(Type string, size_t length) : _string(string), _length(length) {}
-
-  size_t copy(char* dest, size_t maxLength, size_t offset = 0u, size_t* destLength = nullptr) const {
-    const size_t length = len(offset);
-    size_t lengthToCopy = std::min(length, maxLength);
-    
-    memcpy_P(dest, (PGM_P)_string + offset, lengthToCopy);
-    dest[lengthToCopy] = '\0';
-
-    if (destLength != nullptr) {
-      *destLength += lengthToCopy;
-    }
-
-    return length;
-  }
-  
-  size_t len(size_t offset = 0u) const { return _length - offset; }
-};
-
-template<typename T>
-using remove_const_ptr = typename std::remove_const<typename std::remove_pointer<T>::type>::type;
-
-template<typename T>
-ConstString<remove_const_ptr<T>> str(T string) {
-  return {string};
-}
-
-template<typename T>
-ConstString<remove_const_ptr<T>> data(T string, size_t length) {
-  return {string, length};
-}
-
-template<typename T>
 struct convert final {
   static const char* toString(T value) { return ""; }
   static T fromString(const char* value) { return {}; }
@@ -400,9 +323,7 @@ const char* make_static(const char* string) {
   static ConstStrSet strings {};
   auto entry = strings.find(string);
   if (entry == strings.end()) {
-    size_t length = strlen(string);
-    char* staticString = new char[length + 1];
-    str(string).copy(staticString, length);
+    char* staticString = toolbox::strref{string}.toCharArray();
     strings.insert(staticString);
     return staticString;
   } else {

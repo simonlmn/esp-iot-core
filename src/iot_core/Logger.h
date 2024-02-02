@@ -3,6 +3,7 @@
 
 #include "Utils.h"
 #include "DateTime.h"
+#include <toolbox.h>
 #include <functional>
 #include <algorithm>
 
@@ -33,13 +34,13 @@ const char* logLevelToString(LogLevel level) {
   }
 }
 
-LogLevel logLevelFromString(const char* level, size_t length = SIZE_MAX) {
-  if (strncmp(level, "   ", length) == 0) return LogLevel::None;
-  if (strncmp(level, "ERR", length) == 0) return LogLevel::Error;
-  if (strncmp(level, "WRN", length) == 0) return LogLevel::Warning;
-  if (strncmp(level, "INF", length) == 0) return LogLevel::Info;
-  if (strncmp(level, "DBG", length) == 0) return LogLevel::Debug;
-  if (strncmp(level, "TRC", length) == 0) return LogLevel::Trace;
+LogLevel logLevelFromString(const toolbox::strref& level) {
+  if (level == "   ") return LogLevel::None;
+  if (level == "ERR") return LogLevel::Error;
+  if (level == "WRN") return LogLevel::Warning;
+  if (level == "INF") return LogLevel::Info;
+  if (level == "DBG") return LogLevel::Debug;
+  if (level == "TRC") return LogLevel::Trace;
   return LogLevel::None;
 }
 
@@ -76,7 +77,7 @@ class LogService final {
   template<typename T>
   void logInternal(LogLevel level, const char* category, T message) {
     beginLogEntry(level, category);
-    str(message).copy(_logEntry + _logEntryLength, MAX_LOG_ENTRY_LENGTH - _logEntryLength, 0u, &_logEntryLength);
+    toolbox::strref(message).copy(_logEntry + _logEntryLength, MAX_LOG_ENTRY_LENGTH - _logEntryLength, 0u, &_logEntryLength);
     commitLogEntry();
   }
 

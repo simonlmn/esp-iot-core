@@ -4,6 +4,7 @@
 #include "Logger.h"
 #include "DateTime.h"
 #include "VersionInfo.h"
+#include <toolbox.h>
 #include <functional>
 
 namespace iot_core {
@@ -32,8 +33,8 @@ public:
 
 class IDiagnosticsCollector {
 public:
-  virtual void beginSection(const char* name) = 0;
-  virtual void addValue(const char* name, const char* value) = 0;
+  virtual void beginSection(const toolbox::strref& name) = 0;
+  virtual void addValue(const toolbox::strref& name, const toolbox::strref& value) = 0;
   virtual void endSection() = 0;
 };
 

@@ -6,6 +6,7 @@
 #include <WiFiManager.h>
 #include <ArduinoOTA.h>
 #include <gpiobj.h>
+#include <toolbox.h>
 #include "Interfaces.h"
 #include "IDateTimeSource.h"
 #include "Config.h"
@@ -62,7 +63,7 @@ public:
     _factoryResetPin(factoryResetPin),
     _debugEnablePin(debugEnablePin)
   {
-    toolbox::strref(format("%x", ESP.getChipId())).copy(_chipId, 8);
+    toolbox::strref(toolbox::format("%x", ESP.getChipId())).copy(_chipId, 8);
   }
 
   const char* id() const override {
@@ -93,11 +94,11 @@ public:
     _statusLedPin = true;
 
     char hostname[33];
-    toolbox::strref(format("%s-%s", _name, _chipId)).copy(hostname, std::size(hostname) - 1);
+    toolbox::strref(toolbox::format("%s-%s", _name, _chipId)).copy(hostname, std::size(hostname) - 1);
 
-    _logger.log(format(F("Setting up %s version %s (commit %s)"), name(), version().version_string, version().commit_hash));
-    _logger.log(format(F("Running on device ID %s"), id()));
-    _logger.log(format(F("Using hostname %s"), hostname));
+    _logger.log(toolbox::format(F("Setting up %s version %s (commit %s)"), name(), version().version_string, version().commit_hash));
+    _logger.log(toolbox::format(F("Running on device ID %s"), id()));
+    _logger.log(toolbox::format(F("Using hostname %s"), hostname));
 
     LittleFS.begin();
 
@@ -141,7 +142,7 @@ public:
     if (connected()) {
       _status = ConnectionStatus::Connected;      
       if (_disconnectedSinceMs > 0) {
-        _logger.log(LogLevel::Info, format(F("Reconnected after %u ms."), _uptime.millis() - _disconnectedSinceMs));
+        _logger.log(LogLevel::Info, toolbox::format(F("Reconnected after %u ms."), _uptime.millis() - _disconnectedSinceMs));
         _disconnectedSinceMs = 0;
         _status = ConnectionStatus::Reconnected;
       }
@@ -290,7 +291,7 @@ public:
   void getAllConfig(std::function<void(const char*, const char*)> writer) const override {
     for (auto component : _components) {
       component->getConfig([&] (const char* name, const char* value) {
-        writer(format("%s.%s", component->name(), name), value);
+        writer(toolbox::format("%s.%s", component->name(), name), value);
       });  
     }
   }
@@ -302,21 +303,21 @@ public:
   void getDiagnostics(IDiagnosticsCollector& collector) const override {
     collector.beginSection("system");
     collector.addValue("chipId", id());
-    collector.addValue("flashChipId", format("%x", ESP.getFlashChipId()));
+    collector.addValue("flashChipId", toolbox::format("%x", ESP.getFlashChipId()));
     collector.addValue("sketchMD5", ESP.getSketchMD5().c_str());
     collector.addValue("name", name());
     collector.addValue("version", version().version_string);
     collector.addValue("iotCoreVersion", IOT_CORE_VERSION);
     collector.addValue("espCoreVersion", ESP.getCoreVersion().c_str());
     collector.addValue("espSdkVersion", ESP.getSdkVersion());
-    collector.addValue("cpuFreq", format("%u", ESP.getCpuFreqMHz()));
-    collector.addValue("chipVcc", format("%1.2f", ESP.getVcc() / 1000.0));
+    collector.addValue("cpuFreq", toolbox::format("%u", ESP.getCpuFreqMHz()));
+    collector.addValue("chipVcc", toolbox::format("%1.2f", ESP.getVcc() / 1000.0));
     collector.addValue("resetReason", ESP.getResetReason().c_str());
     collector.addValue("uptime", _uptime.format());
-    collector.addValue("freeHeap", format("%u", ESP.getFreeHeap()));
-    collector.addValue("heapFragmentation", format("%u", ESP.getHeapFragmentation()));
-    collector.addValue("maxFreeBlockSize", format("%u", ESP.getMaxFreeBlockSize()));
-    collector.addValue("wifiRssi", format("%i", WiFi.RSSI()));
+    collector.addValue("freeHeap", toolbox::format("%u", ESP.getFreeHeap()));
+    collector.addValue("heapFragmentation", toolbox::format("%u", ESP.getHeapFragmentation()));
+    collector.addValue("maxFreeBlockSize", toolbox::format("%u", ESP.getMaxFreeBlockSize()));
+    collector.addValue("wifiRssi", toolbox::format("%i", WiFi.RSSI()));
     collector.addValue("ip", WiFi.localIP().toString().c_str());
 
     collector.beginSection("timing");
@@ -397,16 +398,16 @@ private:
   }
 
   void restoreConfiguration(IConfigurable* configurable) {
-    ConfigParser parser = readConfigFile(format("/config/%s", configurable->name()));
+    ConfigParser parser = readConfigFile(toolbox::format("/config/%s", configurable->name()));
     if (parser.parse([&] (char* name, const char* value) { return configurable->configure(name, value); })) {
-      _logger.log(LogLevel::Info, format(F("Restored config for '%s'."), configurable->name()));
+      _logger.log(LogLevel::Info, toolbox::format(F("Restored config for '%s'."), configurable->name()));
     } else {
-      _logger.log(LogLevel::Error, format(F("failed to restore config for '%s'."), configurable->name()));
+      _logger.log(LogLevel::Error, toolbox::format(F("failed to restore config for '%s'."), configurable->name()));
     }
   }
 
   void persistConfiguration(IConfigurable* configurable) {
-    writeConfigFile(format("/config/%s", configurable->name()), configurable);
+    writeConfigFile(toolbox::format("/config/%s", configurable->name()), configurable);
   }
 
   void persistAllConfigurations() {

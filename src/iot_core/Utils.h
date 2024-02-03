@@ -98,40 +98,6 @@ public:
   }
 };
 
-toolbox::Maybe<long int> asInteger(const char* value) {
-  char* endptr;
-  long int integer = strtol(value, &endptr, 10);
-
-  return { endptr != value, integer };
-}
-
-const char* EMPTY_STRING = "";
-
-static const unsigned short DEFAULT_FORMAT_BUFFER_SIZE = 128u;
-static char DEFAULT_FORMAT_BUFFER[DEFAULT_FORMAT_BUFFER_SIZE + 1];
-
-char* format(const char* fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
-  vsnprintf(DEFAULT_FORMAT_BUFFER, DEFAULT_FORMAT_BUFFER_SIZE + 1, fmt, args);
-  va_end(args);
-  if (DEFAULT_FORMAT_BUFFER_SIZE > 0) {
-    DEFAULT_FORMAT_BUFFER[DEFAULT_FORMAT_BUFFER_SIZE] = '\0';
-  }
-  return DEFAULT_FORMAT_BUFFER;
-}
-
-char* format(const __FlashStringHelper* fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
-  vsnprintf_P(DEFAULT_FORMAT_BUFFER, DEFAULT_FORMAT_BUFFER_SIZE + 1, (PGM_P)fmt, args);
-  va_end(args);
-  if (DEFAULT_FORMAT_BUFFER_SIZE > 0) {
-    DEFAULT_FORMAT_BUFFER[DEFAULT_FORMAT_BUFFER_SIZE] = '\0';
-  }
-  return DEFAULT_FORMAT_BUFFER;
-}
-
 template<typename T>
 struct convert final {
   static const char* toString(T value) { return ""; }

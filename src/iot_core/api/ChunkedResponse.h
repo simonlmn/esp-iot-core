@@ -66,28 +66,6 @@ public:
     _valid = false;
   }
 
-  size_t write(const toolbox::strref& string) {
-    if (!_valid) {
-      return 0u;
-    }
-
-    size_t offset = 0u;
-    do {
-      size_t maxLength = BUFFER_SIZE - _size;
-      size_t stringLength = string.copy(_buffer + _size, maxLength, offset);
-      
-      if (maxLength < stringLength) {
-        _size += maxLength;
-        offset += maxLength;
-        flush();
-      } else {
-        _size += stringLength;
-        break;
-      }
-    } while (true);
-    return string.len();
-  }
-
   size_t write(char c) override {
     if (!_valid) {
       return 0u;
@@ -101,12 +79,22 @@ public:
     return 1u;
   }
 
-  size_t write(const char* string) override {
-    return write(toolbox::strref{string});
-  }
+  size_t write(const toolbox::strref& string) override {
+    if (!_valid) {
+      return 0u;
+    }
 
-  size_t write(const __FlashStringHelper* string) override {
-    return write(toolbox::strref{string});
+    toolbox::strref remaining = string;
+    while (!remaining.empty()) {
+      size_t copiedLength = remaining.copy(_buffer, BUFFER_SIZE - _size, false);
+      _size += copiedLength;
+      if (_size == BUFFER_SIZE) {
+        flush();
+      }
+      remaining = remaining.skip(copiedLength);
+    }
+    
+    return string.length();
   }
 };
 

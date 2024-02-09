@@ -63,7 +63,7 @@ public:
     _factoryResetPin(factoryResetPin),
     _debugEnablePin(debugEnablePin)
   {
-    toolbox::strref(toolbox::format("%x", ESP.getChipId())).copy(_chipId, 8);
+    toolbox::strref(toolbox::format("%x", ESP.getChipId())).copy(_chipId, 8, true);
   }
 
   const char* id() const override {
@@ -94,7 +94,7 @@ public:
     _statusLedPin = true;
 
     char hostname[33];
-    toolbox::strref(toolbox::format("%s-%s", _name, _chipId)).copy(hostname, std::size(hostname) - 1);
+    toolbox::strref(toolbox::format("%s-%s", _name, _chipId)).copy(hostname, std::size(hostname) - 1, true);
 
     _logger.log(toolbox::format(F("Setting up %s version %s (commit %s)"), name(), version().version_string, version().commit_hash));
     _logger.log(toolbox::format(F("Running on device ID %s"), id()));

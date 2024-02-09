@@ -73,6 +73,10 @@ public:
   size_t read(char* buffer, size_t bufferSize) override {
     return _stream.read(buffer, bufferSize);
   }
+
+  size_t readString(char* buffer, size_t bufferSize) override {
+    return _stream.readString(buffer, bufferSize);
+  }
 };
 
 class SingleResponseBody final : public IResponseBody {
@@ -97,25 +101,18 @@ public:
 
   bool valid() const override { return _valid; };
 
-  size_t write(const toolbox::strref& text) {
+  size_t write(const toolbox::strref& content) override {
     if (!_valid) {
       return 0u;
     }
-    if (text.isInProgmem() || _contentType.isInProgmem()) {
-      _server.send_P(_responseCode, _contentType.raw(), text.raw());
+
+    if (content.isInProgmem() || _contentType.isInProgmem()) {
+      _server.send_P(_responseCode, _contentType.ref(), content.ref(), content.length());
     } else {
-      _server.send(_responseCode, _contentType.cstr(), text.cstr());
+      _server.send(_responseCode, _contentType.ref(), content.ref(), content.length());
     }
     
-    return text.len();
-  }
-
-  size_t write(const char* text) override {
-    return write(toolbox::strref{text});
-  }
-
-  size_t write(const __FlashStringHelper* text) override {
-    return write(toolbox::strref{text});
+    return content.length();
   }
 
   size_t write(char c) override {
@@ -136,8 +133,7 @@ public:
   void begin(int code, const toolbox::strref& contentType) { _response.begin(code, contentType); }
   void end() { _response.end(); }
   bool valid() const override { return _response.valid(); };
-  size_t write(const char* text) override { return _response.write(text); }
-  size_t write(const __FlashStringHelper* text) override { return _response.write(text); }
+  size_t write(const toolbox::strref& content) override { return _response.write(content); }
   size_t write(char c) override { return _response.write(c); }
 };
 
@@ -183,7 +179,7 @@ public:
     } else if (_chunkedBody.valid()) {
       _chunkedBody.end();
     } else {
-      _server.send_P(_code, _contentType.cstr(), "");
+      _server.send_P(_code, _contentType.ref(), "");
     }
   }
   
@@ -268,7 +264,7 @@ public:
 
     // generic OPTIONS reply to make "pre-flight" checks work
     on(UriGlob(F("*")), HttpMethod::OPTIONS, [](const IRequest&, IResponse& response) {  
-      response.code(ResponseCode::OkNoContent).header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+      response.code(ResponseCode::OkNoContent).header(F("Access-Control-Allow-Methods"), F("GET, POST, PUT, DELETE, OPTIONS"));
     });
     
     for (auto provider : _providers) {

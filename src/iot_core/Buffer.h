@@ -1,7 +1,7 @@
 #ifndef IOT_CORE_BUFFER_H_
 #define IOT_CORE_BUFFER_H_
 
-#include "Utils.h"
+#include <toolbox.h>
 
 namespace iot_core {
 
@@ -11,7 +11,7 @@ namespace iot_core {
  */
 template<size_t BUFFER_SIZE = 512u>
 class Buffer final {
-  char _buffer[BUFFER_SIZE + 1u] = {}; // +1 for null-termination
+  char _buffer[BUFFER_SIZE] = {};
   size_t _size = 0u;
   bool _overrun = false;
 
@@ -39,24 +39,19 @@ public:
     _overrun = false;
   }
 
-  template<typename X>
-  size_t write(X text) {
-    return write(iot_core::str(text));
-  }
-
-  template<typename U>
-  size_t write(iot_core::ConstString<U> text) {
-    size_t maxLength = BUFFER_SIZE - _size;
-    size_t textLength = text.copy(_buffer + _size, maxLength, 0u);
-
-    if (maxLength < textLength) {
-      _overrun = true;
-      _size += maxLength;
-      return maxLength;
-    } else {
-      _size += textLength;
-      return textLength;
+  size_t write(toolbox::strref& data) {
+    if (_overrun) {
+      return 0;
     }
+
+    size_t copiedLength = data.copy(_buffer + _size, BUFFER_SIZE - _size, false);
+    _size += copiedLength;
+
+    if (copiedLength < data.length()) {
+      _overrun = true;
+    }
+
+    return copiedLength;
   }
 
   size_t write(char c) {
@@ -64,9 +59,7 @@ public:
       _overrun = true;
       return 0u;
     }
-    _buffer[_size] = c;
-    _size += 1u;
-    _buffer[_size] = '\0';
+    _buffer[_size++] = c;
     return 1u;
   }
 };

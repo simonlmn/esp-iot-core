@@ -47,20 +47,20 @@ LogLevel logLevelFromString(const toolbox::strref& level) {
 class LogService;
 
 class Logger final {
-  LogService* _service;
+  mutable LogService* _service;
   const char* _category;
 
 public:
   Logger(LogService& service, const char* category) : _service(&service), _category(category) {}
 
   template<typename T>
-  void log(T message);
+  void log(T message) const;
 
   template<typename T, std::enable_if_t<!std::is_invocable<T>::value, bool> = true>
-  void log(LogLevel level, T message);
+  void log(LogLevel level, T message) const;
 
   template<typename T, std::enable_if_t<std::is_invocable<T>::value, bool> = true>
-  void log(LogLevel level, T messageFunction);
+  void log(LogLevel level, T messageFunction) const;
 };
 
 class LogService final {
@@ -77,7 +77,7 @@ class LogService final {
   template<typename T>
   void logInternal(LogLevel level, const char* category, T message) {
     beginLogEntry(level, category);
-    toolbox::strref(message).copy(_logEntry + _logEntryLength, MAX_LOG_ENTRY_LENGTH - _logEntryLength, 0u, &_logEntryLength);
+    _logEntryLength += toolbox::strref(message).copy(_logEntry + _logEntryLength, MAX_LOG_ENTRY_LENGTH - _logEntryLength, true);
     commitLogEntry();
   }
 
@@ -194,17 +194,17 @@ public:
 };
 
 template<typename T>
-void Logger::log(T message) {
+void Logger::log(T message) const {
   _service->log(_category, message);
 }
 
 template<typename T, std::enable_if_t<!std::is_invocable<T>::value, bool> = true>
-void Logger::log(LogLevel level, T message) {
+void Logger::log(LogLevel level, T message) const {
   _service->log(level, _category, message);
 };
 
 template<typename T, std::enable_if_t<std::is_invocable<T>::value, bool> = true>
-void Logger::log(LogLevel level, T messageFunction) {
+void Logger::log(LogLevel level, T messageFunction) const {
   _service->log(level, _category, messageFunction);
 };
 

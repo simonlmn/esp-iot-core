@@ -86,7 +86,7 @@ public:
 
     toolbox::strref remaining = string;
     while (!remaining.empty()) {
-      size_t copiedLength = remaining.copy(_buffer, BUFFER_SIZE - _size, false);
+      size_t copiedLength = remaining.copy(_buffer + _size, BUFFER_SIZE - _size, false);
       _size += copiedLength;
       if (_size == BUFFER_SIZE) {
         flush();

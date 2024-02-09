@@ -62,7 +62,7 @@ public:
     return _contentTypeHeader;
   }
 
-  const toolbox::strref& content() const override {
+  const toolbox::strref& content() override {
     return _plainArg;
   }
 
@@ -157,7 +157,7 @@ public:
     return _server.pathArg(i);
   }
 
-  const IRequestBody& body() const override {
+  IRequestBody& body() override {
     return _body;
   }
 };
@@ -234,7 +234,7 @@ private:
 public:
   Server(ISystem& system, int port = 80) : _logger(system.logger("api")), _system(system), _providers(), _server(port) {}
   
-  void on(const Uri& uri, HttpMethod method, std::function<void(const IRequest&, IResponse&)> handler) override {
+  void on(const Uri& uri, HttpMethod method, std::function<void(IRequest&, IResponse&)> handler) override {
     _server.on(uri, mapHttpMethod(method), _callStatistics.wrap([this,handler]() {
       Request request {_server};
       Response response {_server};
@@ -263,7 +263,7 @@ public:
     _server.collectHeaders(FPSTR(HEADER_CONTENT_TYPE));
 
     // generic OPTIONS reply to make "pre-flight" checks work
-    on(UriGlob(F("*")), HttpMethod::OPTIONS, [](const IRequest&, IResponse& response) {  
+    on(UriGlob(F("*")), HttpMethod::OPTIONS, [](IRequest&, IResponse& response) {  
       response.code(ResponseCode::OkNoContent).header(F("Access-Control-Allow-Methods"), F("GET, POST, PUT, DELETE, OPTIONS"));
     });
     

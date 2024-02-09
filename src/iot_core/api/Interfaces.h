@@ -59,7 +59,7 @@ enum struct ResponseCode : int {
 class IRequestBody : public toolbox::IInput {
 public:
   virtual const toolbox::strref& contentType() const = 0;
-  virtual const toolbox::strref& content() const = 0;
+  virtual const toolbox::strref& content() = 0;
 };
 
 class IRequest {
@@ -67,7 +67,7 @@ public:
   virtual bool hasArg(const toolbox::strref& name) const = 0;
   virtual toolbox::strref arg(const toolbox::strref& name) const = 0;
   virtual toolbox::strref pathArg(unsigned int i) const = 0;
-  virtual const IRequestBody& body() const = 0;
+  virtual IRequestBody& body() = 0;
 };
 
 class IResponseBody : public toolbox::IOutput {
@@ -88,7 +88,7 @@ public:
 
 class IServer {
 public:
-  virtual void on(const Uri& uri, HttpMethod method, std::function<void(const IRequest&, IResponse&)> handler) = 0;
+  virtual void on(const Uri& uri, HttpMethod method, std::function<void(IRequest&, IResponse&)> handler) = 0;
 };
 
 class IProvider {

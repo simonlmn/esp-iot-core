@@ -289,7 +289,7 @@ const char* make_static(const char* string) {
   static ConstStrSet strings {};
   auto entry = strings.find(string);
   if (entry == strings.end()) {
-    char* staticString = toolbox::strref{string}.toCharArray();
+    char* staticString = toolbox::strref{string}.toCharArray(true);
     strings.insert(staticString);
     return staticString;
   } else {

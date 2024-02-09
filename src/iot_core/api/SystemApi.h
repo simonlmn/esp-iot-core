@@ -20,22 +20,22 @@ public:
   SystemApi(iot_core::ISystem& system, iot_core::IApplicationContainer& application) : _logger(system.logger("api")), _system(system), _application(application) {}
 
   void setupApi(IServer& server) override {
-    server.on(F("/api/system/reset"), HttpMethod::POST, [this](const IRequest&, IResponse& response) {
+    server.on(F("/api/system/reset"), HttpMethod::POST, [this](IRequest&, IResponse& response) {
       _system.schedule([&] () { _system.reset(); });
       response.code(ResponseCode::OkNoContent);
     });
 
-    server.on(F("/api/system/factory-reset"), HttpMethod::POST, [this](const IRequest&, IResponse& response) {
+    server.on(F("/api/system/factory-reset"), HttpMethod::POST, [this](IRequest&, IResponse& response) {
       _system.schedule([&] () { _system.factoryReset(); });
       response.code(ResponseCode::OkNoContent);
     });
 
-    server.on(F("/api/system/stop"), HttpMethod::POST, [this](const IRequest&, IResponse& response) {
+    server.on(F("/api/system/stop"), HttpMethod::POST, [this](IRequest&, IResponse& response) {
       _system.stop();
       response.code(ResponseCode::OkNoContent);
     });
 
-    server.on(F("/api/system/status"), HttpMethod::GET, [this](const IRequest&, IResponse& response) {
+    server.on(F("/api/system/status"), HttpMethod::GET, [this](IRequest&, IResponse& response) {
       IResponseBody& body = response
         .code(ResponseCode::Ok)
         .contentType(ContentType::ApplicationJson)
@@ -54,7 +54,7 @@ public:
       }
     });
 
-    server.on(F("/api/system/logs"), HttpMethod::GET, [this](const IRequest&, IResponse& response) {
+    server.on(F("/api/system/logs"), HttpMethod::GET, [this](IRequest&, IResponse& response) {
       IResponseBody& body = response
         .code(ResponseCode::Ok)
         .contentType(ContentType::TextPlain)
@@ -69,7 +69,7 @@ public:
       });
     });
 
-    server.on(F("/api/system/log-level"), HttpMethod::GET, [this](const IRequest&, IResponse& response) {
+    server.on(F("/api/system/log-level"), HttpMethod::GET, [this](IRequest&, IResponse& response) {
       IResponseBody& body = response
         .code(ResponseCode::Ok)
         .contentType(ContentType::TextPlain)
@@ -90,7 +90,7 @@ public:
       }
     });
 
-    server.on(F("/api/system/log-level"), HttpMethod::PUT, [this](const IRequest& request, IResponse& response) {
+    server.on(F("/api/system/log-level"), HttpMethod::PUT, [this](IRequest& request, IResponse& response) {
       iot_core::LogLevel logLevel = iot_core::logLevelFromString(request.body().content());
 
       _system.logs().initialLogLevel(logLevel);
@@ -102,7 +102,7 @@ public:
         .write(iot_core::logLevelToString(_system.logs().initialLogLevel()));
     });
 
-    server.on(UriBraces(F("/api/system/log-level/{}")), HttpMethod::PUT, [this](const IRequest& request, IResponse& response) {
+    server.on(UriBraces(F("/api/system/log-level/{}")), HttpMethod::PUT, [this](IRequest& request, IResponse& response) {
       const auto& category = request.pathArg(0);
       iot_core::LogLevel logLevel = iot_core::logLevelFromString(request.body().content());
 
@@ -115,7 +115,7 @@ public:
         .write(iot_core::logLevelToString(_system.logs().logLevel(category.cstr())));
     });
 
-    server.on(F("/api/system/config"), HttpMethod::GET, [this](const IRequest&, IResponse& response) {
+    server.on(F("/api/system/config"), HttpMethod::GET, [this](IRequest&, IResponse& response) {
       IResponseBody& body = response
         .code(ResponseCode::Ok)
         .contentType(ContentType::TextPlain)
@@ -134,7 +134,7 @@ public:
       });
     });
 
-    server.on(F("/api/system/config"), HttpMethod::PUT, [this](const IRequest& request, IResponse& response) {
+    server.on(F("/api/system/config"), HttpMethod::PUT, [this](IRequest& request, IResponse& response) {
       const char* body = request.body().content().cstr();
 
       iot_core::ConfigParser config {const_cast<char*>(body)};
@@ -150,7 +150,7 @@ public:
       }
     });
 
-    server.on(UriBraces(F("/api/system/config/{}")), HttpMethod::GET, [this](const IRequest& request, IResponse& response) {
+    server.on(UriBraces(F("/api/system/config/{}")), HttpMethod::GET, [this](IRequest& request, IResponse& response) {
       const auto& category = request.pathArg(0);
 
       IResponseBody& body = response
@@ -171,7 +171,7 @@ public:
       });
     });
 
-    server.on(UriBraces(F("/api/system/config/{}")), HttpMethod::PUT, [this](const IRequest& request, IResponse& response) {
+    server.on(UriBraces(F("/api/system/config/{}")), HttpMethod::PUT, [this](IRequest& request, IResponse& response) {
       const auto& category = request.pathArg(0);
       const char* body = request.body().content().cstr();
 

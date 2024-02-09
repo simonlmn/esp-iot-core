@@ -39,7 +39,7 @@ public:
     _overrun = false;
   }
 
-  size_t write(toolbox::strref& data) {
+  size_t write(const toolbox::strref& data) {
     if (_overrun) {
       return 0;
     }

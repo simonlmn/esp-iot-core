@@ -93,7 +93,7 @@ public:
         writer.close();
 
         writer.property("logLevel").string(iot_core::logLevelToString(_system.logs().logLevel(component->name())));
-        
+
         writer.property("diagnostics");
         JsonDiagnosticsCollector collector {writer};
         component->getDiagnostics(collector);
@@ -110,25 +110,123 @@ public:
       }
     });
 
-    server.on(F("/api/system/log-level"), HttpMethod::GET, [this](IRequest&, IResponse& response) {
+    server.on(UriBraces(F("/api/system/components/{}")), HttpMethod::GET, [this](IRequest& request, IResponse& response) {
+      const auto& name = request.pathArg(0);
+
+      const auto component = _application.getComponent(name);
+      if (component == nullptr) {
+        response.code(ResponseCode::BadRequest)
+          .contentType(ContentType::TextPlain)
+          .sendSingleBody()
+          .write(F("Component not found"));
+        return;
+      }
+
       IResponseBody& body = response
         .code(ResponseCode::Ok)
-        .contentType(ContentType::TextPlain)
+        .contentType(ContentType::ApplicationJson)
         .sendChunkedBody();
       
       if (!body.valid()) {
         return;
       }
 
-      body.write(iot_core::logLevelToString(_system.logs().initialLogLevel()));
-      body.write('\n');
+      auto writer = jsons::makeWriter(body);      
+      writer.openObject();
+      writer.property("name").string(component->name());
+      
+      writer.property("config").openObject();
+      component->getConfig([&] (const char* name, const char* value) {
+        writer.property(name).string(value);
+      });
+      writer.close();
 
-      for (auto entry : _system.logs().logLevels()) {
-        body.write(entry.first);
-        body.write('=');
-        body.write(iot_core::logLevelToString(entry.second));
-        body.write('\n');
+      writer.property("logLevel").string(iot_core::logLevelToString(_system.logs().logLevel(component->name())));
+
+      writer.property("diagnostics");
+      JsonDiagnosticsCollector collector {writer};
+      component->getDiagnostics(collector);
+      collector.end();
+      
+      writer.close();
+      writer.end();
+      
+      if (writer.failed()) {
+        _logger.log(LogLevel::Warning, "Failed to write components JSON response.");
       }
+    });
+
+    server.on(UriBraces(F("/api/system/components/{}/log-level")), HttpMethod::GET, [this](IRequest& request, IResponse& response) {
+      const auto& name = request.pathArg(0);
+
+      const auto component = _application.getComponent(name);
+      if (component == nullptr) {
+        response.code(ResponseCode::BadRequest)
+          .contentType(ContentType::TextPlain)
+          .sendSingleBody()
+          .write(F("Component not found"));
+        return;
+      }
+
+      response
+        .code(ResponseCode::Ok)
+        .contentType(ContentType::TextPlain)
+        .sendSingleBody()
+        .write(iot_core::logLevelToString(_system.logs().logLevel(name.cstr())));
+    });
+
+    server.on(UriBraces(F("/api/system/components/{}/log-level")), HttpMethod::PUT, [this](IRequest& request, IResponse& response) {
+      const auto& name = request.pathArg(0);
+      const auto component = _application.getComponent(name);
+      if (component == nullptr) {
+        response.code(ResponseCode::BadRequest)
+          .contentType(ContentType::TextPlain)
+          .sendSingleBody()
+          .write(F("Component not found"));
+        return;
+      }
+
+      iot_core::LogLevel logLevel = iot_core::logLevelFromString(request.body().content());
+      if (logLevel == iot_core::LogLevel::Unknown) {
+        response.code(ResponseCode::BadRequest)
+          .contentType(ContentType::TextPlain)
+          .sendSingleBody()
+          .write(F("Invalid log level"));
+        return;
+      }
+
+      _system.logs().logLevel(iot_core::make_static(name.cstr()), logLevel);
+      
+      response
+        .code(ResponseCode::Ok)
+        .contentType(ContentType::TextPlain)
+        .sendSingleBody()
+        .write(iot_core::logLevelToString(_system.logs().logLevel(name.cstr())));
+    });
+
+    server.on(UriBraces(F("/api/system/components/{}/log-level")), HttpMethod::DELETE, [this](IRequest& request, IResponse& response) {
+      const auto& name = request.pathArg(0);
+
+      const auto component = _application.getComponent(name);
+      if (component == nullptr) {
+        response.code(ResponseCode::BadRequest)
+          .contentType(ContentType::TextPlain)
+          .sendSingleBody()
+          .write(F("Component not found"));
+        return;
+      }
+
+      _system.logs().clearLogLevel(name.cstr());
+
+      response.code(ResponseCode::OkNoContent);
+    });
+
+    server.on(F("/api/system/log-level"), HttpMethod::GET, [this](IRequest&, IResponse& response) {
+      response
+        .code(ResponseCode::Ok)
+        .contentType(ContentType::TextPlain)
+        .sendSingleBody()
+        .write(iot_core::logLevelToString(_system.logs().initialLogLevel()));
     });
 
     server.on(F("/api/system/log-level"), HttpMethod::PUT, [this](IRequest& request, IResponse& response) {
@@ -141,19 +239,6 @@ public:
         .contentType(ContentType::TextPlain)
         .sendSingleBody()
         .write(iot_core::logLevelToString(_system.logs().initialLogLevel()));
-    });
-
-    server.on(UriBraces(F("/api/system/log-level/{}")), HttpMethod::PUT, [this](IRequest& request, IResponse& response) {
-      const auto& category = request.pathArg(0);
-      iot_core::LogLevel logLevel = iot_core::logLevelFromString(request.body().content());
-
-      _system.logs().logLevel(iot_core::make_static(category.cstr()), logLevel);
-      
-      response
-        .code(ResponseCode::Ok)
-        .contentType(ContentType::TextPlain)
-        .sendSingleBody()
-        .write(iot_core::logLevelToString(_system.logs().logLevel(category.cstr())));
     });
 
     server.on(F("/api/system/config"), HttpMethod::GET, [this](IRequest&, IResponse& response) {

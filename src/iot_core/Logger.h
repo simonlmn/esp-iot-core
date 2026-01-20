@@ -20,6 +20,7 @@ enum struct LogLevel : uint8_t {
   Info = 3,
   Debug = 4,
   Trace = 5,
+  Unknown = 255,
 };
 
 const char* logLevelToString(LogLevel level) {
@@ -41,7 +42,7 @@ LogLevel logLevelFromString(const toolbox::strref& level) {
   if (level == "INF") return LogLevel::Info;
   if (level == "DBG") return LogLevel::Debug;
   if (level == "TRC") return LogLevel::Trace;
-  return LogLevel::None;
+  return LogLevel::Unknown;
 }
 
 class LogService;
@@ -150,6 +151,10 @@ public:
 
   void logLevel(const char* category, LogLevel level) {
     _logLevels[category] = level;
+  }
+
+  void clearLogLevel(const char* category) {
+    _logLevels.erase(category);
   }
 
   template<typename T>

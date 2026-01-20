@@ -65,11 +65,13 @@ class IApplicationContainer : public IDiagnosticsProvider {
 public:
   virtual const VersionInfo& version() const = 0;
   virtual void addComponent(IApplicationComponent* component) = 0;
+  virtual IApplicationComponent const* getComponent(const toolbox::strref& name) const = 0;
+  virtual IApplicationComponent* getComponent(const toolbox::strref& name) = 0;
+  virtual void forEachComponent(std::function<void(const IApplicationComponent* component)> handler) const = 0;
   virtual bool configure(const char* category, IConfigParser const& config) = 0;
   virtual void getConfig(const char* category, std::function<void(const char*, const char*)> writer) const = 0;
   virtual bool configureAll(IConfigParser const& config) = 0;
   virtual void getAllConfig(std::function<void(const char*, const char*)> writer) const = 0;
-  virtual void forEachComponent(std::function<void(const IApplicationComponent* component)> handler) const = 0;
 };
 
 }

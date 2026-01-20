@@ -83,6 +83,20 @@ public:
     _componentTiming[component->name()] = {};
   }
 
+  IApplicationComponent const* getComponent(const toolbox::strref& name) const override {
+    return findComponentByName(name);
+  }
+
+  IApplicationComponent* getComponent(const toolbox::strref& name) override {
+    return findComponentByName(name);
+  }
+
+  void forEachComponent(std::function<void(const IApplicationComponent* component)> handler) const override {
+    for (auto component : _components) {
+      handler(component);
+    }
+  }
+
   void setup() {
     if (_debugEnablePin) {
       _logService.initialLogLevel(LogLevel::Debug);
@@ -296,12 +310,6 @@ public:
     }
   }
 
-  void forEachComponent(std::function<void(const IApplicationComponent* component)> handler) const override {
-    for (auto component : _components) {
-      handler(component);
-    }
-  }
-
   LogService& logs() override { return _logService; }
 
   Logger logger(const char* category) override { return _logService.logger(category); }
@@ -365,18 +373,18 @@ private:
     }
   }
 
-  IApplicationComponent* findComponentByName(const char* name) {
+  IApplicationComponent* findComponentByName(const toolbox::strref& name) {
     for (auto component : _components) {
-      if (strcmp(component->name(), name) == 0) {
+      if (toolbox::strref(component->name()) == name) {
         return component;
       }
     }
     return nullptr;
   }
 
-  IApplicationComponent const* findComponentByName(const char* name) const {
+  IApplicationComponent const* findComponentByName(const toolbox::strref& name) const {
     for (auto component : _components) {
-      if (strcmp(component->name(), name) == 0) {
+      if (toolbox::strref(component->name()) == name) {
         return component;
       }
     }

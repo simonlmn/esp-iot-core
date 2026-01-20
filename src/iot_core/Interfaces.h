@@ -69,6 +69,7 @@ public:
   virtual void getConfig(const char* category, std::function<void(const char*, const char*)> writer) const = 0;
   virtual bool configureAll(IConfigParser const& config) = 0;
   virtual void getAllConfig(std::function<void(const char*, const char*)> writer) const = 0;
+  virtual void forEachComponent(std::function<void(const IApplicationComponent* component)> handler) const = 0;
 };
 
 }

@@ -27,6 +27,10 @@ public:
   void endSection() override {
     _writer.close();
   }
+
+  void end() {
+    _writer.close();
+  }
 };
 
 }

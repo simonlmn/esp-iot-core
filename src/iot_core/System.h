@@ -296,6 +296,12 @@ public:
     }
   }
 
+  void forEachComponent(std::function<void(const IApplicationComponent* component)> handler) const override {
+    for (auto component : _components) {
+      handler(component);
+    }
+  }
+
   LogService& logs() override { return _logService; }
 
   Logger logger(const char* category) override { return _logService.logger(category); }

@@ -69,6 +69,47 @@ public:
       });
     });
 
+    server.on(F("/api/system/components"), HttpMethod::GET, [this](IRequest&, IResponse& response) {
+      IResponseBody& body = response
+        .code(ResponseCode::Ok)
+        .contentType(ContentType::ApplicationJson)
+        .sendChunkedBody();
+      
+      if (!body.valid()) {
+        return;
+      }
+
+      auto writer = jsons::makeWriter(body);
+      writer.openList();
+
+      _application.forEachComponent([&] (const IApplicationComponent* component) {
+        writer.openObject();
+        writer.property("name").string(component->name());
+        
+        writer.property("config").openObject();
+        component->getConfig([&] (const char* name, const char* value) {
+          writer.property(name).string(value);
+        });
+        writer.close();
+
+        writer.property("logLevel").string(iot_core::logLevelToString(_system.logs().logLevel(component->name())));
+        
+        writer.property("diagnostics");
+        JsonDiagnosticsCollector collector {writer};
+        component->getDiagnostics(collector);
+        collector.end();
+        
+        writer.close();
+      });
+
+      writer.close();
+      writer.end();
+      
+      if (writer.failed()) {
+        _logger.log(LogLevel::Warning, "Failed to write components JSON response.");
+      }
+    });
+
     server.on(F("/api/system/log-level"), HttpMethod::GET, [this](IRequest&, IResponse& response) {
       IResponseBody& body = response
         .code(ResponseCode::Ok)

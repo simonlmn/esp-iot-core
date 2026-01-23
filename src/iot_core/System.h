@@ -11,6 +11,7 @@
 #include "IDateTimeSource.h"
 #include "Config.h"
 #include "Logger.h"
+#include "LogSinks.h"
 #include "DateTime.h"
 #include "Utils.h"
 #include "Version.h"
@@ -32,6 +33,8 @@ class System final : public ISystem, public IApplicationContainer {
   ConnectionStatus _status = ConnectionStatus::Disconnected;
   const IDateTimeSource* _dateTimeSource = &NO_DATE_TIME_SOURCE;
   LogService _logService;
+  InMemoryLogSink _memoryLog;
+  UdpLogSink _udpLog;
   Logger _logger;
   WiFiManager _wifiManager {};
   std::vector<IApplicationComponent*> _components {};
@@ -53,6 +56,8 @@ class System final : public ISystem, public IApplicationContainer {
 public:
   System(const char* name, const VersionInfo& version, const char* otaPassword, gpiobj::DigitalOutput& statusLedPin, gpiobj::DigitalInput& otaEnablePin, gpiobj::DigitalInput& updatePin, gpiobj::DigitalInput& factoryResetPin, gpiobj::DigitalInput& debugEnablePin)
     : _logService(_uptime),
+    _memoryLog(),
+    _udpLog(),
     _logger(_logService.logger("sys")),
     _name(name),
     _version(version),
@@ -63,6 +68,9 @@ public:
     _factoryResetPin(factoryResetPin),
     _debugEnablePin(debugEnablePin)
   {
+    _logService.addLogSink(_memoryLog);
+    _logService.addLogSink(_udpLog);
+
     toolbox::strref(toolbox::format("%x", ESP.getChipId())).copy(_chipId, 8, true);
   }
 
@@ -100,6 +108,7 @@ public:
   void setup() {
     if (_debugEnablePin) {
       _logService.initialLogLevel(LogLevel::Debug);
+      _udpLog.enable(true);
     }
 
 #ifdef DEVELOPMENT_MODE
@@ -313,6 +322,9 @@ public:
   LogService& logs() override { return _logService; }
 
   Logger logger(const char* category) override { return _logService.logger(category); }
+
+  ILocalLogSink& localLogSink() override { return _memoryLog; }
+  UdpLogSink& udpLogSink() { return _udpLog; }
 
   void getDiagnostics(IDiagnosticsCollector& collector) const override {
     collector.beginSection("system");

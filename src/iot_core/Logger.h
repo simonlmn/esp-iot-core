@@ -6,12 +6,18 @@
 #include <toolbox.h>
 #include <functional>
 #include <algorithm>
+#include <vector>
 
 namespace iot_core {
 
 static const size_t MAX_LOG_ENTRY_LENGTH = 128u;
-static const size_t LOG_BUFFER_SIZE = 4096u;
 static const char LOG_ENTRY_SEPARATOR = '\n';
+
+struct LogEntry {
+  char buffer[MAX_LOG_ENTRY_LENGTH + 1] = {};
+  size_t length = 0u;
+};
+static LogEntry g_logEntry; // Globally shared log entry buffer for building/processing single log entries
 
 enum struct LogLevel : uint8_t {
   None = 0,
@@ -20,28 +26,31 @@ enum struct LogLevel : uint8_t {
   Info = 3,
   Debug = 4,
   Trace = 5,
-  Unknown = 255,
+  Unknown = 254,
+  All = 255,
 };
 
 const char* logLevelToString(LogLevel level) {
   switch (level) {
-    case LogLevel::None: return "   ";
+    case LogLevel::None: return "---";
     case LogLevel::Error: return "ERR";
     case LogLevel::Warning: return "WRN";
     case LogLevel::Info: return "INF";
     case LogLevel::Debug: return "DBG";
     case LogLevel::Trace: return "TRC";
+    case LogLevel::All: return "ALL";
     default: return "???";
   }
 }
 
 LogLevel logLevelFromString(const toolbox::strref& level) {
-  if (level == "   ") return LogLevel::None;
+  if (level == "---") return LogLevel::None;
   if (level == "ERR") return LogLevel::Error;
   if (level == "WRN") return LogLevel::Warning;
   if (level == "INF") return LogLevel::Info;
   if (level == "DBG") return LogLevel::Debug;
   if (level == "TRC") return LogLevel::Trace;
+  if (level == "ALL") return LogLevel::All;
   return LogLevel::Unknown;
 }
 
@@ -64,65 +73,58 @@ public:
   void log(LogLevel level, T messageFunction) const;
 };
 
+class ILogSink {
+public:
+  virtual void enable(bool enabled) = 0;  
+  virtual bool enabled() const = 0;
+  virtual void logLevel(LogLevel level) = 0;
+  virtual LogLevel logLevel() const = 0;
+  virtual void commitLogEntry(const char* entry) = 0;
+};
+
+class ILocalLogSink : public ILogSink {
+public:
+  virtual void output(std::function<void(const char* entry)> handler) const = 0;
+};
+
 class LogService final {
   static const LogLevel DEFAULT_LOG_LEVEL = LogLevel::Info;
   LogLevel _initialLogLevel = DEFAULT_LOG_LEVEL;
   ConstStrMap<LogLevel> _logLevels = {};
-  mutable char _logEntry[MAX_LOG_ENTRY_LENGTH + 1] = {};
-  size_t _logEntryLength = 0u;
-  char _logBuffer[LOG_BUFFER_SIZE] = {};
-  size_t _logBufferStart = 0u;
-  size_t _logBufferEnd = 0u;
   Time const& _uptime;
+  std::vector<ILogSink*> _sinks;
 
   template<typename T>
   void logInternal(LogLevel level, const char* category, T message) {
     beginLogEntry(level, category);
-    _logEntryLength += toolbox::strref(message).copy(_logEntry + _logEntryLength, MAX_LOG_ENTRY_LENGTH - _logEntryLength, true);
-    commitLogEntry();
+    g_logEntry.length += toolbox::strref(message).copy(g_logEntry.buffer + g_logEntry.length, MAX_LOG_ENTRY_LENGTH - g_logEntry.length, true);
+    commitLogEntry(level);
   }
 
   void beginLogEntry(LogLevel level, const char* category) {
-    size_t actualLength = snprintf_P(_logEntry, MAX_LOG_ENTRY_LENGTH, PSTR("[%s|%s|%s] "), _uptime.format(), category, logLevelToString(level));
-    _logEntryLength = std::min(actualLength, MAX_LOG_ENTRY_LENGTH);
+    size_t actualLength = snprintf_P(g_logEntry.buffer, MAX_LOG_ENTRY_LENGTH, PSTR("[%s|%s|%s] "), _uptime.format(), category, logLevelToString(level));
+    g_logEntry.length = std::min(actualLength, MAX_LOG_ENTRY_LENGTH);
   }
 
-  void commitLogEntry() {
-    if (_logEntryLength == 0u) {
+  void commitLogEntry(LogLevel level) {
+    if (g_logEntry.length == 0u) {
       return;
     }
-    _logEntry[_logEntryLength] = LOG_ENTRY_SEPARATOR;
-    _logEntry[_logEntryLength + 1u] = '\0';
+    g_logEntry.buffer[g_logEntry.length] = LOG_ENTRY_SEPARATOR;
+    g_logEntry.buffer[g_logEntry.length + 1u] = '\0';
 
-    for (unsigned short i = 0u; _logEntry[i] != '\0'; ++i) {
-      if (_logBufferEnd == LOG_BUFFER_SIZE) {
-        _logBufferEnd = 0u;
-        if (_logBufferStart == 0u) {
-          advanceBufferStart();
-        }
-      } else if (_logBufferStart == _logBufferEnd && _logBufferStart != 0u) {
-        advanceBufferStart();
+    for (auto sink : _sinks) {
+      if (sink->enabled() && sink->logLevel() >= level) {
+        sink->commitLogEntry(g_logEntry.buffer);
       }
-
-      _logBuffer[_logBufferEnd] = _logEntry[i];
-      _logBufferEnd += 1u;
     }
 
-    _logEntryLength = 0u;
-    _logEntry[_logEntryLength] = '\0';
-  }
-
-  void advanceBufferStart() {
-    while (_logBuffer[_logBufferStart] != LOG_ENTRY_SEPARATOR) {
-      _logBufferStart = (_logBufferStart + 1u) % LOG_BUFFER_SIZE;
-    }
-    _logBufferStart = (_logBufferStart + 1u) % LOG_BUFFER_SIZE;
+    g_logEntry.length = 0u;
+    g_logEntry.buffer[g_logEntry.length] = '\0';
   }
 
 public:
-  explicit LogService(Time const& uptime) : _uptime(uptime) {
-    memset(_logBuffer, LOG_ENTRY_SEPARATOR, LOG_BUFFER_SIZE);
-  }
+  explicit LogService(Time const& uptime) : _uptime(uptime), _sinks() {}
 
   Logger logger(const char* category) {
     return {*this, category};
@@ -176,25 +178,16 @@ public:
     }
   };
 
-  void output(std::function<void(const char* entry)> handler) const {
-    if (_logBuffer[_logBufferStart] != LOG_ENTRY_SEPARATOR) {
-      unsigned short bufferIndex = _logBufferStart;
-      unsigned short entryIndex = 0u;
-      do {
-        bufferIndex = bufferIndex % LOG_BUFFER_SIZE;
-        _logEntry[entryIndex] = _logBuffer[bufferIndex];
+  void addLogSink(ILogSink& sink) {
+    _sinks.push_back(&sink);
+  }
 
-        if (_logEntry[entryIndex] == LOG_ENTRY_SEPARATOR) {
-          _logEntry[entryIndex + 1u] = '\0';
-          handler(_logEntry);
-          entryIndex = 0u;
-        } else {
-          entryIndex += 1u;
-        }
+  void removeLogSink(ILogSink& sink) {
+    _sinks.erase(std::remove(_sinks.begin(), _sinks.end(), &sink), _sinks.end());
+  }
 
-        bufferIndex = bufferIndex + 1u;
-      } while (bufferIndex != _logBufferEnd);
-    }
+  const std::vector<ILogSink*>& logSinks() const {
+    return _sinks;
   }
 };
 

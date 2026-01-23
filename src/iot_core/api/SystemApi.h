@@ -64,7 +64,7 @@ public:
         return;
       }
       
-      _system.logs().output([&] (const char* entry) {
+      _system.localLogSink().output([&] (const char* entry) {
         body.write(entry);
       });
     });

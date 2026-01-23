@@ -26,6 +26,7 @@ public:
   virtual bool connected() const = 0;
   virtual LogService& logs() = 0;
   virtual Logger logger(const char* category) = 0;
+  virtual ILocalLogSink& localLogSink() = 0;
   virtual void lyield() = 0;
   virtual DateTime const& currentDateTime() const = 0;
   virtual void schedule(std::function<void()> function) = 0;

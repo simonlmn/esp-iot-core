@@ -349,18 +349,18 @@ public:
     collector.beginSection("timing");
 
     collector.beginSection("yield");
-    collector.addValue("count", convert<size_t>::toString(_yieldTiming.count(), 10));
-    collector.addValue("avg", convert<unsigned long>::toString(_yieldTiming.avg(), 10));
-    collector.addValue("min", convert<unsigned long>::toString(_yieldTiming.min(), 10));
-    collector.addValue("max", convert<unsigned long>::toString(_yieldTiming.max(), 10));
+    collector.addValue("count", toolbox::convert<size_t>::toString(_yieldTiming.count(), 10));
+    collector.addValue("avg", toolbox::convert<unsigned long>::toString(_yieldTiming.avg(), 10));
+    collector.addValue("min", toolbox::convert<unsigned long>::toString(_yieldTiming.min(), 10));
+    collector.addValue("max", toolbox::convert<unsigned long>::toString(_yieldTiming.max(), 10));
     collector.endSection();
 
     for (auto& [componentName, timing] : _componentTiming) {
       collector.beginSection(componentName);
-      collector.addValue("count", convert<size_t>::toString(timing.count(), 10));
-      collector.addValue("avg", convert<unsigned long>::toString(timing.avg(), 10));
-      collector.addValue("min", convert<unsigned long>::toString(timing.min(), 10));
-      collector.addValue("max", convert<unsigned long>::toString(timing.max(), 10));
+      collector.addValue("count", toolbox::convert<size_t>::toString(timing.count(), 10));
+      collector.addValue("avg", toolbox::convert<unsigned long>::toString(timing.avg(), 10));
+      collector.addValue("min", toolbox::convert<unsigned long>::toString(timing.min(), 10));
+      collector.addValue("max", toolbox::convert<unsigned long>::toString(timing.max(), 10));
       collector.endSection();
     }
 

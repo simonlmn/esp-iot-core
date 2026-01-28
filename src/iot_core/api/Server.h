@@ -3,6 +3,7 @@
 
 #include <iot_core/Interfaces.h>
 #include <iot_core/Utils.h>
+#include <toolbox.h>
 #include <ESP8266WebServer.h>
 #include <uri/UriGlob.h>
 #include <vector>
@@ -290,10 +291,10 @@ public:
   }
 
   void getDiagnostics(IDiagnosticsCollector& collector) const override {
-    collector.addValue("callCount", iot_core::convert<size_t>::toString(_callStatistics.count(), 10));
-    collector.addValue("callAvg", iot_core::convert<unsigned long>::toString(_callStatistics.avg(), 10));
-    collector.addValue("callMin", iot_core::convert<unsigned long>::toString(_callStatistics.min(), 10));
-    collector.addValue("callMax", iot_core::convert<unsigned long>::toString(_callStatistics.max(), 10));
+    collector.addValue("callCount", toolbox::convert<size_t>::toString(_callStatistics.count(), 10));
+    collector.addValue("callAvg", toolbox::convert<unsigned long>::toString(_callStatistics.avg(), 10));
+    collector.addValue("callMin", toolbox::convert<unsigned long>::toString(_callStatistics.min(), 10));
+    collector.addValue("callMax", toolbox::convert<unsigned long>::toString(_callStatistics.max(), 10));
   }
 };
 

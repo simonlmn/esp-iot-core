@@ -5,6 +5,7 @@
 #include "DateTime.h"
 #include <toolbox.h>
 #include <functional>
+#include <type_traits>
 #include <algorithm>
 #include <vector>
 

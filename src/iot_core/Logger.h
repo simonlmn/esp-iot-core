@@ -31,27 +31,27 @@ enum struct LogLevel : uint8_t {
   All = 255,
 };
 
-const char* logLevelToString(LogLevel level) {
+toolbox::strref logLevelToString(LogLevel level) {
   switch (level) {
-    case LogLevel::None: return "---";
-    case LogLevel::Error: return "ERR";
-    case LogLevel::Warning: return "WRN";
-    case LogLevel::Info: return "INF";
-    case LogLevel::Debug: return "DBG";
-    case LogLevel::Trace: return "TRC";
-    case LogLevel::All: return "ALL";
-    default: return "???";
+    case LogLevel::None: return F("---");
+    case LogLevel::Error: return F("ERR");
+    case LogLevel::Warning: return F("WRN");
+    case LogLevel::Info: return F("INF");
+    case LogLevel::Debug: return F("DBG");
+    case LogLevel::Trace: return F("TRC");
+    case LogLevel::All: return F("ALL");
+    default: return F("???");
   }
 }
 
 LogLevel logLevelFromString(const toolbox::strref& level) {
-  if (level == "---") return LogLevel::None;
-  if (level == "ERR") return LogLevel::Error;
-  if (level == "WRN") return LogLevel::Warning;
-  if (level == "INF") return LogLevel::Info;
-  if (level == "DBG") return LogLevel::Debug;
-  if (level == "TRC") return LogLevel::Trace;
-  if (level == "ALL") return LogLevel::All;
+  if (level == F("---")) return LogLevel::None;
+  if (level == F("ERR")) return LogLevel::Error;
+  if (level == F("WRN")) return LogLevel::Warning;
+  if (level == F("INF")) return LogLevel::Info;
+  if (level == F("DBG")) return LogLevel::Debug;
+  if (level == F("TRC")) return LogLevel::Trace;
+  if (level == F("ALL")) return LogLevel::All;
   return LogLevel::Unknown;
 }
 
@@ -103,7 +103,7 @@ class LogService final {
   }
 
   void beginLogEntry(LogLevel level, const char* category) {
-    size_t actualLength = snprintf_P(g_logEntry.buffer, MAX_LOG_ENTRY_LENGTH, PSTR("[%s|%s|%s] "), _uptime.format(), category, logLevelToString(level));
+    size_t actualLength = snprintf_P(g_logEntry.buffer, MAX_LOG_ENTRY_LENGTH, PSTR("[%s|%s|%s] "), _uptime.format(), category, logLevelToString(level).cstr());
     g_logEntry.length = std::min(actualLength, MAX_LOG_ENTRY_LENGTH);
   }
 

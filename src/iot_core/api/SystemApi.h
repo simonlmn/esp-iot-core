@@ -50,7 +50,7 @@ public:
       _application.getDiagnostics(collector);
       writer.end();
       if (writer.failed()) {
-        _logger.log(LogLevel::Warning, "Failed to write diagnostics JSON response.");
+        _logger.log(LogLevel::Warning, F("Failed to write diagnostics JSON response."));
       }
     });
 
@@ -84,17 +84,17 @@ public:
 
       _application.forEachComponent([&] (const IApplicationComponent* component) {
         writer.openObject();
-        writer.property("name").string(component->name());
+        writer.property(F("name")).string(component->name());
         
-        writer.property("config").openObject();
+        writer.property(F("config")).openObject();
         component->getConfig([&] (const char* name, const char* value) {
           writer.property(name).string(value);
         });
         writer.close();
 
-        writer.property("logLevel").string(iot_core::logLevelToString(_system.logs().logLevel(component->name())));
+        writer.property(F("logLevel")).string(iot_core::logLevelToString(_system.logs().logLevel(component->name())));
 
-        writer.property("diagnostics");
+        writer.property(F("diagnostics"));
         JsonDiagnosticsCollector collector {writer};
         component->getDiagnostics(collector);
         collector.end();
@@ -106,7 +106,7 @@ public:
       writer.end();
       
       if (writer.failed()) {
-        _logger.log(LogLevel::Warning, "Failed to write components JSON response.");
+        _logger.log(LogLevel::Warning, F("Failed to write components JSON response."));
       }
     });
 
@@ -133,17 +133,16 @@ public:
 
       auto writer = jsons::makeWriter(body);      
       writer.openObject();
-      writer.property("name").string(component->name());
+      writer.property(F("name")).string(component->name());
       
-      writer.property("config").openObject();
+      writer.property(F("config")).openObject();
       component->getConfig([&] (const char* name, const char* value) {
         writer.property(name).string(value);
       });
       writer.close();
 
-      writer.property("logLevel").string(iot_core::logLevelToString(_system.logs().logLevel(component->name())));
-
-      writer.property("diagnostics");
+      writer.property(F("logLevel")).string(iot_core::logLevelToString(_system.logs().logLevel(component->name())));
+      writer.property(F("diagnostics"));
       JsonDiagnosticsCollector collector {writer};
       component->getDiagnostics(collector);
       collector.end();
@@ -152,7 +151,7 @@ public:
       writer.end();
       
       if (writer.failed()) {
-        _logger.log(LogLevel::Warning, "Failed to write components JSON response.");
+        _logger.log(LogLevel::Warning, F("Failed to write components JSON response."));
       }
     });
 

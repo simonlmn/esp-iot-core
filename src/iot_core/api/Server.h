@@ -108,9 +108,9 @@ public:
     }
 
     if (content.isInProgmem() || _contentType.isInProgmem()) {
-      _server.send_P(_responseCode, _contentType.ref(), content.ref(), content.length());
+      _server.send_P(_responseCode, _contentType.cstr(), content.cstr(), content.length());
     } else {
-      _server.send(_responseCode, _contentType.ref(), content.ref(), content.length());
+      _server.send(_responseCode, _contentType.cstr(), content.cstr(), content.length());
     }
     
     return content.length();
@@ -291,10 +291,10 @@ public:
   }
 
   void getDiagnostics(IDiagnosticsCollector& collector) const override {
-    collector.addValue("callCount", toolbox::convert<size_t>::toString(_callStatistics.count(), 10));
-    collector.addValue("callAvg", toolbox::convert<unsigned long>::toString(_callStatistics.avg(), 10));
-    collector.addValue("callMin", toolbox::convert<unsigned long>::toString(_callStatistics.min(), 10));
-    collector.addValue("callMax", toolbox::convert<unsigned long>::toString(_callStatistics.max(), 10));
+    collector.addValue(F("callCount"), toolbox::convert<size_t>::toString(_callStatistics.count(), 10));
+    collector.addValue(F("callAvg"), toolbox::convert<unsigned long>::toString(_callStatistics.avg(), 10));
+    collector.addValue(F("callMin"), toolbox::convert<unsigned long>::toString(_callStatistics.min(), 10));
+    collector.addValue(F("callMax"), toolbox::convert<unsigned long>::toString(_callStatistics.max(), 10));
   }
 };
 

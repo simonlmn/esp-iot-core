@@ -327,40 +327,40 @@ public:
   UdpLogSink& udpLogSink() { return _udpLog; }
 
   void getDiagnostics(IDiagnosticsCollector& collector) const override {
-    collector.beginSection("system");
-    collector.addValue("chipId", id());
-    collector.addValue("flashChipId", toolbox::format("%x", ESP.getFlashChipId()));
-    collector.addValue("sketchMD5", ESP.getSketchMD5().c_str());
-    collector.addValue("name", name());
-    collector.addValue("version", version().version_string);
-    collector.addValue("iotCoreVersion", IOT_CORE_VERSION);
-    collector.addValue("espCoreVersion", ESP.getCoreVersion().c_str());
-    collector.addValue("espSdkVersion", ESP.getSdkVersion());
-    collector.addValue("cpuFreq", toolbox::format("%u", ESP.getCpuFreqMHz()));
-    collector.addValue("chipVcc", toolbox::format("%1.2f", ESP.getVcc() / 1000.0));
-    collector.addValue("resetReason", ESP.getResetReason().c_str());
-    collector.addValue("uptime", _uptime.format());
-    collector.addValue("freeHeap", toolbox::format("%u", ESP.getFreeHeap()));
-    collector.addValue("heapFragmentation", toolbox::format("%u", ESP.getHeapFragmentation()));
-    collector.addValue("maxFreeBlockSize", toolbox::format("%u", ESP.getMaxFreeBlockSize()));
-    collector.addValue("wifiRssi", toolbox::format("%i", WiFi.RSSI()));
-    collector.addValue("ip", WiFi.localIP().toString().c_str());
+    collector.beginSection(F("system"));
+    collector.addValue(F("chipId"), id());
+    collector.addValue(F("flashChipId"), toolbox::format("%x", ESP.getFlashChipId()));
+    collector.addValue(F("sketchMD5"), ESP.getSketchMD5().c_str());
+    collector.addValue(F("name"), name());
+    collector.addValue(F("version"), version().version_string);
+    collector.addValue(F("iotCoreVersion"), IOT_CORE_VERSION);
+    collector.addValue(F("espCoreVersion"), ESP.getCoreVersion().c_str());
+    collector.addValue(F("espSdkVersion"), ESP.getSdkVersion());
+    collector.addValue(F("cpuFreq"), toolbox::format("%u", ESP.getCpuFreqMHz()));
+    collector.addValue(F("chipVcc"), toolbox::format("%1.2f", ESP.getVcc() / 1000.0));
+    collector.addValue(F("resetReason"), ESP.getResetReason().c_str());
+    collector.addValue(F("uptime"), _uptime.format());
+    collector.addValue(F("freeHeap"), toolbox::format("%u", ESP.getFreeHeap()));
+    collector.addValue(F("heapFragmentation"), toolbox::format("%u", ESP.getHeapFragmentation()));
+    collector.addValue(F("maxFreeBlockSize"), toolbox::format("%u", ESP.getMaxFreeBlockSize()));
+    collector.addValue(F("wifiRssi"), toolbox::format("%i", WiFi.RSSI()));
+    collector.addValue(F("ip"), WiFi.localIP().toString().c_str());
 
-    collector.beginSection("timing");
+    collector.beginSection(F("timing"));
 
-    collector.beginSection("yield");
-    collector.addValue("count", toolbox::convert<size_t>::toString(_yieldTiming.count(), 10));
-    collector.addValue("avg", toolbox::convert<unsigned long>::toString(_yieldTiming.avg(), 10));
-    collector.addValue("min", toolbox::convert<unsigned long>::toString(_yieldTiming.min(), 10));
-    collector.addValue("max", toolbox::convert<unsigned long>::toString(_yieldTiming.max(), 10));
+    collector.beginSection(F("yield"));
+    collector.addValue(F("count"), toolbox::convert<size_t>::toString(_yieldTiming.count(), 10));
+    collector.addValue(F("avg"), toolbox::convert<unsigned long>::toString(_yieldTiming.avg(), 10));
+    collector.addValue(F("min"), toolbox::convert<unsigned long>::toString(_yieldTiming.min(), 10));
+    collector.addValue(F("max"), toolbox::convert<unsigned long>::toString(_yieldTiming.max(), 10));
     collector.endSection();
 
     for (auto& [componentName, timing] : _componentTiming) {
       collector.beginSection(componentName);
-      collector.addValue("count", toolbox::convert<size_t>::toString(timing.count(), 10));
-      collector.addValue("avg", toolbox::convert<unsigned long>::toString(timing.avg(), 10));
-      collector.addValue("min", toolbox::convert<unsigned long>::toString(timing.min(), 10));
-      collector.addValue("max", toolbox::convert<unsigned long>::toString(timing.max(), 10));
+      collector.addValue(F("count"), toolbox::convert<size_t>::toString(timing.count(), 10));
+      collector.addValue(F("avg"), toolbox::convert<unsigned long>::toString(timing.avg(), 10));
+      collector.addValue(F("min"), toolbox::convert<unsigned long>::toString(timing.min(), 10));
+      collector.addValue(F("max"), toolbox::convert<unsigned long>::toString(timing.max(), 10));
       collector.endSection();
     }
 
@@ -424,7 +424,7 @@ private:
   }
 
   void restoreConfiguration(IConfigurable* configurable) {
-    ConfigParser parser = readConfigFile(toolbox::format("/config/%s", configurable->name()));
+    ConfigParser parser = readConfigFile(toolbox::format(F("/config/%s"), configurable->name()));
     if (parser.parse([&] (char* name, const char* value) { return configurable->configure(name, value); })) {
       _logger.log(LogLevel::Info, toolbox::format(F("Restored config for '%s'."), configurable->name()));
     } else {
@@ -433,7 +433,7 @@ private:
   }
 
   void persistConfiguration(IConfigurable* configurable) {
-    writeConfigFile(toolbox::format("/config/%s", configurable->name()), configurable);
+    writeConfigFile(toolbox::format(F("/config/%s"), configurable->name()), configurable);
   }
 
   void persistAllConfigurations() {

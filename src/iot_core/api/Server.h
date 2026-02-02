@@ -34,15 +34,15 @@ int mapResponseCode(ResponseCode code) {
   return static_cast<int>(code);
 }
 
-const char* mapContentType(ContentType contentType) {
+toolbox::strref mapContentType(ContentType contentType) {
   switch (contentType) {
     default:
-    case ContentType::TextPlain: return "text/plain";
-    case ContentType::TextCsv: return "text/csv";
-    case ContentType::TextHtml: return "text/html";
-    case ContentType::ApplicationOctetStream: return "application/octet-stream";
-    case ContentType::ApplicationJson: return "application/json";
-    case ContentType::ApplicationXml: return "application/xml";
+    case ContentType::TextPlain: return F("text/plain");
+    case ContentType::TextCsv: return F("text/csv");
+    case ContentType::TextHtml: return F("text/html");
+    case ContentType::ApplicationOctetStream: return F("application/octet-stream");
+    case ContentType::ApplicationJson: return F("application/json");
+    case ContentType::ApplicationXml: return F("application/xml");
   }
 }
 
@@ -55,7 +55,7 @@ private:
 public:
   explicit RequestBody(ESP8266WebServer& server) :
     _contentTypeHeader(server.header(FPSTR(HEADER_CONTENT_TYPE))),
-    _plainArg(server.arg("plain")),
+    _plainArg(server.arg(F("plain"))),
     _stream(_plainArg)
   {}
 
@@ -88,7 +88,7 @@ private:
   bool _valid;
 
 public:
-  explicit SingleResponseBody(ESP8266WebServer& server) : _server(server), _responseCode(200), _contentType("text/plain"), _valid(false) {}
+  explicit SingleResponseBody(ESP8266WebServer& server) : _server(server), _responseCode(200), _contentType(mapContentType(ContentType::TextPlain)), _valid(false) {}
 
   void begin(int code, const toolbox::strref& contentType) {
     _responseCode = code;
@@ -200,7 +200,7 @@ public:
   }
 
   IResponse& header(const toolbox::strref& name, const toolbox::strref& value) override {
-    _server.sendHeader(name.toString(), value.toString());
+    _server.sendHeader(name.toString(), value.toString(), false);
     return *this;
   }
   
@@ -233,7 +233,7 @@ private:
   TimingStatistics<10u> _callStatistics;
   
 public:
-  Server(ISystem& system, int port = 80) : _logger(system.logger("api")), _system(system), _providers(), _server(port) {}
+  Server(ISystem& system, int port = 80) : _logger(system.logger(F("api"))), _system(system), _providers(), _server(port) {}
   
   void on(const Uri& uri, HttpMethod method, std::function<void(IRequest&, IResponse&)> handler) override {
     _server.on(uri, mapHttpMethod(method), _callStatistics.wrap([this,handler]() {
@@ -247,15 +247,15 @@ public:
     _providers.emplace_back(provider);
   }
 
-  const char* name() const override {
-    return "api";
+  toolbox::strref name() const override {
+    return F("api");
   }
 
-  bool configure(const char* /*name*/, const char* /*value*/) override {
+  bool configure(const toolbox::strref& /*name*/, const toolbox::strref& /*value*/) override {
     return false;
   }
 
-  void getConfig(std::function<void(const char*, const char*)> /*writer*/) const override {
+  void getConfig(iot_core::ConfigWriter /*writer*/) const override {
   }
 
   void setup(bool /*connected*/) override {

@@ -26,7 +26,7 @@ class System final : public ISystem, public IApplicationContainer {
   static const unsigned long FACTORY_RESET_TRIGGER_TIME = 5000ul; // 5 seconds
   static const unsigned long DISCONNECTED_RESET_TIMEOUT = 300000ul; // 5 minutes
   
-  char _chipId[9];
+  
   bool _stopped = false;
   Time _uptime = {};
   unsigned long _disconnectedSinceMs = 1u;
@@ -38,8 +38,9 @@ class System final : public ISystem, public IApplicationContainer {
   Logger _logger;
   WiFiManager _wifiManager {};
   std::vector<IApplicationComponent*> _components {};
-
-  const char* _name;
+  
+  toolbox::str<8> _chipId;
+  toolbox::strref _name;
   const VersionInfo& _version;
   const char* _otaPassword;
   gpiobj::DigitalOutput& _statusLedPin;
@@ -49,16 +50,17 @@ class System final : public ISystem, public IApplicationContainer {
   gpiobj::DigitalInput& _debugEnablePin;
 
   TimingStatistics<20> _yieldTiming {};
-  ConstStrMap<TimingStatistics<10>> _componentTiming {};
+  std::map<toolbox::strref, TimingStatistics<10>> _componentTiming {};
 
   std::function<void()> _scheduledFunction {};
 
 public:
-  System(const char* name, const VersionInfo& version, const char* otaPassword, gpiobj::DigitalOutput& statusLedPin, gpiobj::DigitalInput& otaEnablePin, gpiobj::DigitalInput& updatePin, gpiobj::DigitalInput& factoryResetPin, gpiobj::DigitalInput& debugEnablePin)
+  System(const toolbox::strref& name, const VersionInfo& version, const char* otaPassword, gpiobj::DigitalOutput& statusLedPin, gpiobj::DigitalInput& otaEnablePin, gpiobj::DigitalInput& updatePin, gpiobj::DigitalInput& factoryResetPin, gpiobj::DigitalInput& debugEnablePin)
     : _logService(_uptime),
     _memoryLog(),
     _udpLog(),
-    _logger(_logService.logger("sys")),
+    _logger(_logService.logger(F("sys"))),
+    _chipId(toolbox::format("%x", ESP.getChipId())),
     _name(name),
     _version(version),
     _otaPassword(otaPassword),
@@ -70,15 +72,13 @@ public:
   {
     _logService.addLogSink(_memoryLog);
     _logService.addLogSink(_udpLog);
-
-    toolbox::strref(toolbox::format("%x", ESP.getChipId())).copy(_chipId, 8, true);
   }
 
-  const char* id() const override {
+  toolbox::strref id() const override {
     return _chipId;
   }
 
-  const char* name() const {
+  toolbox::strref name() const {
     return _name;
   }
 
@@ -116,12 +116,11 @@ public:
 #endif
     _statusLedPin = true;
 
-    char hostname[33];
-    toolbox::strref(toolbox::format("%s-%s", _name, _chipId)).copy(hostname, std::size(hostname) - 1, true);
+    toolbox::str<32> hostname {toolbox::format("%s-%s", _name.cstr(), _chipId.cstr())};
 
-    _logger.log(toolbox::format(F("Setting up %s version %s (commit %s)"), name(), version().version_string, version().commit_hash));
-    _logger.log(toolbox::format(F("Running on device ID %s"), id()));
-    _logger.log(toolbox::format(F("Using hostname %s"), hostname));
+    _logger.log(toolbox::format(F("Setting up %s version %s (commit %s)"), name().cstr(), version().version_string, version().commit_hash));
+    _logger.log(toolbox::format(F("Running on device ID %s"), id().cstr()));
+    _logger.log(toolbox::format(F("Using hostname %s"), hostname.cstr()));
 
     LittleFS.begin();
 
@@ -134,7 +133,7 @@ public:
       setupOTA();
     }
     
-    _logger.log(LogLevel::Info, F("Internal setup done."));
+    _logger.log(LogLevel::Info, F("System setup done."));
 
     for (auto component : _components) {
       restoreConfiguration(component);
@@ -263,12 +262,12 @@ public:
     _dateTimeSource = dateTimeSource;
   }
 
-  bool configure(const char* category, IConfigParser const& config) override {
+  bool configure(const toolbox::strref& category, IConfigParser const& config) override {
     auto component = findComponentByName(category);
     if (component == nullptr) {
       return false;
     }
-    if (config.parse([&] (char* name, const char* value) { return component->configure(name, value); })) {
+    if (config.parse([&] (const toolbox::strref& name, const toolbox::strref& value) { return component->configure(name, value); })) {
       persistConfiguration(component);
       return true;
     } else {
@@ -276,7 +275,7 @@ public:
     }
   }
 
-  void getConfig(const char* category, std::function<void(const char*, const char*)> writer) const override {
+  void getConfig(const toolbox::strref& category, ConfigWriter writer) const override {
     auto component = findComponentByName(category);
     if (component == nullptr) {
       return;
@@ -286,21 +285,18 @@ public:
   }
 
   bool configureAll(IConfigParser const& config) override {
-    if (config.parse([this] (char* path, const char* value) {
-      auto categoryEnd = strchr(path, '.');
-      if (categoryEnd == nullptr) {
+    if (config.parse([this] (const toolbox::strref& path, const toolbox::strref& value) {
+      auto categoryEnd = path.indexOf('.');
+      if (categoryEnd == -1) {
         return false;
       }
-      *categoryEnd = '\0';
-      auto category = path;
-            
-      auto component = findComponentByName(category);
-      *categoryEnd = '.';
 
+      auto category = path.substring(0, categoryEnd);
+      auto component = findComponentByName(category);
       if (component == nullptr) {
         return false;
       } else {
-        auto name = categoryEnd + 1;
+        auto name = path.skip(categoryEnd + 1);
         return component->configure(name, value);
       }
     })) {
@@ -311,17 +307,17 @@ public:
     }
   }
 
-  void getAllConfig(std::function<void(const char*, const char*)> writer) const override {
+  void getAllConfig(ConfigWriter writer) const override {
     for (auto component : _components) {
-      component->getConfig([&] (const char* name, const char* value) {
-        writer(toolbox::format("%s.%s", component->name(), name), value);
+      component->getConfig([&] (const toolbox::strref& name, const toolbox::strref& value) {
+        writer(toolbox::format("%s.%s", component->name().cstr(), name.cstr()), value);
       });  
     }
   }
 
   LogService& logs() override { return _logService; }
 
-  Logger logger(const char* category) override { return _logService.logger(category); }
+  Logger logger(const toolbox::strref& category) override { return _logService.logger(category); }
 
   ILocalLogSink& localLogSink() override { return _memoryLog; }
   UdpLogSink& udpLogSink() { return _udpLog; }
@@ -330,21 +326,21 @@ public:
     collector.beginSection(F("system"));
     collector.addValue(F("chipId"), id());
     collector.addValue(F("flashChipId"), toolbox::format("%x", ESP.getFlashChipId()));
-    collector.addValue(F("sketchMD5"), ESP.getSketchMD5().c_str());
+    collector.addValue(F("sketchMD5"), ESP.getSketchMD5());
     collector.addValue(F("name"), name());
     collector.addValue(F("version"), version().version_string);
     collector.addValue(F("iotCoreVersion"), IOT_CORE_VERSION);
-    collector.addValue(F("espCoreVersion"), ESP.getCoreVersion().c_str());
+    collector.addValue(F("espCoreVersion"), ESP.getCoreVersion());
     collector.addValue(F("espSdkVersion"), ESP.getSdkVersion());
     collector.addValue(F("cpuFreq"), toolbox::format("%u", ESP.getCpuFreqMHz()));
     collector.addValue(F("chipVcc"), toolbox::format("%1.2f", ESP.getVcc() / 1000.0));
-    collector.addValue(F("resetReason"), ESP.getResetReason().c_str());
+    collector.addValue(F("resetReason"), ESP.getResetReason());
     collector.addValue(F("uptime"), _uptime.format());
     collector.addValue(F("freeHeap"), toolbox::format("%u", ESP.getFreeHeap()));
     collector.addValue(F("heapFragmentation"), toolbox::format("%u", ESP.getHeapFragmentation()));
     collector.addValue(F("maxFreeBlockSize"), toolbox::format("%u", ESP.getMaxFreeBlockSize()));
     collector.addValue(F("wifiRssi"), toolbox::format("%i", WiFi.RSSI()));
-    collector.addValue(F("ip"), WiFi.localIP().toString().c_str());
+    collector.addValue(F("ip"), WiFi.localIP().toString());
 
     collector.beginSection(F("timing"));
 
@@ -387,7 +383,7 @@ private:
 
   IApplicationComponent* findComponentByName(const toolbox::strref& name) {
     for (auto component : _components) {
-      if (toolbox::strref(component->name()) == name) {
+      if (component->name() == name) {
         return component;
       }
     }
@@ -396,7 +392,7 @@ private:
 
   IApplicationComponent const* findComponentByName(const toolbox::strref& name) const {
     for (auto component : _components) {
-      if (toolbox::strref(component->name()) == name) {
+      if (component->name() == name) {
         return component;
       }
     }
@@ -407,7 +403,7 @@ private:
     ArduinoOTA.setPassword(_otaPassword);
     ArduinoOTA.onStart([this] () { stop(); LittleFS.end(); _logger.log(LogLevel::Info, F("Starting OTA update...")); _statusLedPin = true; });
     ArduinoOTA.onEnd([this] () { _statusLedPin = false; _logger.log(LogLevel::Info, F("OTA update finished.")); });
-    ArduinoOTA.onProgress([this] (unsigned int /*progress*/, unsigned int /*total*/) { _statusLedPin.trigger(true, 10); });
+    ArduinoOTA.onProgress([this] (unsigned int /*progress*/, unsigned int /*total*/) { _statusLedPin.toggleIfUnchangedFor(150ul); });
     ArduinoOTA.begin();
   }
 
@@ -424,16 +420,16 @@ private:
   }
 
   void restoreConfiguration(IConfigurable* configurable) {
-    ConfigParser parser = readConfigFile(toolbox::format(F("/config/%s"), configurable->name()));
-    if (parser.parse([&] (char* name, const char* value) { return configurable->configure(name, value); })) {
-      _logger.log(LogLevel::Info, toolbox::format(F("Restored config for '%s'."), configurable->name()));
+    ConfigParser parser = readConfigFile(toolbox::format(F("/config/%s"), configurable->name().cstr()));
+    if (parser.parse([&] (const toolbox::strref& name, const toolbox::strref& value) { return configurable->configure(name, value); })) {
+      _logger.log(LogLevel::Info, toolbox::format(F("Restored config for '%s'."), configurable->name().cstr()));
     } else {
-      _logger.log(LogLevel::Error, toolbox::format(F("failed to restore config for '%s'."), configurable->name()));
+      _logger.log(LogLevel::Error, toolbox::format(F("failed to restore config for '%s'."), configurable->name().cstr()));
     }
   }
 
   void persistConfiguration(IConfigurable* configurable) {
-    writeConfigFile(toolbox::format(F("/config/%s"), configurable->name()), configurable);
+    writeConfigFile(toolbox::format(F("/config/%s"), configurable->name().cstr()), configurable);
   }
 
   void persistAllConfigurations() {

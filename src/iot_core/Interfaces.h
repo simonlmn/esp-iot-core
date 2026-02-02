@@ -18,14 +18,14 @@ enum struct ConnectionStatus {
 
 class ISystem {
 public:
-  virtual const char* id() const = 0;
+  virtual toolbox::strref id() const = 0;
   virtual void reset() = 0;
   virtual void stop() = 0;
   virtual void factoryReset() = 0;
   virtual ConnectionStatus connectionStatus() const = 0;
   virtual bool connected() const = 0;
   virtual LogService& logs() = 0;
-  virtual Logger logger(const char* category) = 0;
+  virtual Logger logger(const toolbox::strref& category) = 0;
   virtual ILocalLogSink& localLogSink() = 0;
   virtual void lyield() = 0;
   virtual DateTime const& currentDateTime() const = 0;
@@ -44,20 +44,22 @@ public:
   virtual void getDiagnostics(IDiagnosticsCollector& collector) const = 0;
 };
 
+using ConfigWriter = std::function<void(const toolbox::strref& name, const toolbox::strref& value)>;
+
 struct IConfigurable {
-  virtual const char* name() const = 0;
-  virtual bool configure(const char* name, const char* value) = 0;
-  virtual void getConfig(std::function<void(const char*, const char*)> writer) const = 0;
+  virtual toolbox::strref name() const = 0;
+  virtual bool configure(const toolbox::strref& name, const toolbox::strref& value) = 0;
+  virtual void getConfig(ConfigWriter writer) const = 0;
 };
 
 class IConfigParser {
 public:
-  virtual bool parse(std::function<bool(char* name, const char* value)> processEntry) const = 0;
+  virtual bool parse(std::function<bool(const toolbox::strref& name, const toolbox::strref& value)> processEntry) const = 0;
 };
 
 class IApplicationComponent : public IConfigurable, public IDiagnosticsProvider {
 public:
-  virtual const char* name() const = 0;
+  virtual toolbox::strref name() const = 0;
   virtual void setup(bool connected) = 0;
   virtual void loop(ConnectionStatus status) = 0;
 };
@@ -69,10 +71,10 @@ public:
   virtual IApplicationComponent const* getComponent(const toolbox::strref& name) const = 0;
   virtual IApplicationComponent* getComponent(const toolbox::strref& name) = 0;
   virtual void forEachComponent(std::function<void(const IApplicationComponent* component)> handler) const = 0;
-  virtual bool configure(const char* category, IConfigParser const& config) = 0;
-  virtual void getConfig(const char* category, std::function<void(const char*, const char*)> writer) const = 0;
+  virtual bool configure(const toolbox::strref& category, IConfigParser const& config) = 0;
+  virtual void getConfig(const toolbox::strref& category, ConfigWriter writer) const = 0;
   virtual bool configureAll(IConfigParser const& config) = 0;
-  virtual void getAllConfig(std::function<void(const char*, const char*)> writer) const = 0;
+  virtual void getAllConfig(ConfigWriter writer) const = 0;
 };
 
 }

@@ -17,7 +17,7 @@ private:
   iot_core::IApplicationContainer& _application;
 
 public:
-  SystemApi(iot_core::ISystem& system, iot_core::IApplicationContainer& application) : _logger(system.logger("api")), _system(system), _application(application) {}
+  SystemApi(iot_core::ISystem& system, iot_core::IApplicationContainer& application) : _logger(system.logger(F("api"))), _system(system), _application(application) {}
 
   void setupApi(IServer& server) override {
     server.on(F("/api/system/reset"), HttpMethod::POST, [this](IRequest&, IResponse& response) {
@@ -87,7 +87,7 @@ public:
         writer.property(F("name")).string(component->name());
         
         writer.property(F("config")).openObject();
-        component->getConfig([&] (const char* name, const char* value) {
+        component->getConfig([&] (const toolbox::strref& name, const toolbox::strref& value) {
           writer.property(name).string(value);
         });
         writer.close();
@@ -136,7 +136,7 @@ public:
       writer.property(F("name")).string(component->name());
       
       writer.property(F("config")).openObject();
-      component->getConfig([&] (const char* name, const char* value) {
+      component->getConfig([&] (const toolbox::strref& name, const toolbox::strref& value) {
         writer.property(name).string(value);
       });
       writer.close();
@@ -171,7 +171,7 @@ public:
         .code(ResponseCode::Ok)
         .contentType(ContentType::TextPlain)
         .sendSingleBody()
-        .write(iot_core::logLevelToString(_system.logs().logLevel(name.cstr())));
+        .write(iot_core::logLevelToString(_system.logs().logLevel(name)));
     });
 
     server.on(UriBraces(F("/api/system/components/{}/log-level")), HttpMethod::PUT, [this](IRequest& request, IResponse& response) {
@@ -194,13 +194,13 @@ public:
         return;
       }
 
-      _system.logs().logLevel(iot_core::make_static(name.cstr()), logLevel);
+      _system.logs().logLevel(name, logLevel);
       
       response
         .code(ResponseCode::Ok)
         .contentType(ContentType::TextPlain)
         .sendSingleBody()
-        .write(iot_core::logLevelToString(_system.logs().logLevel(name.cstr())));
+        .write(iot_core::logLevelToString(_system.logs().logLevel(name)));
     });
 
     server.on(UriBraces(F("/api/system/components/{}/log-level")), HttpMethod::DELETE, [this](IRequest& request, IResponse& response) {
@@ -215,7 +215,7 @@ public:
         return;
       }
 
-      _system.logs().clearLogLevel(name.cstr());
+      _system.logs().clearLogLevel(name);
 
       response.code(ResponseCode::OkNoContent);
     });
@@ -250,7 +250,7 @@ public:
         return;
       }
 
-      _application.getAllConfig([&] (const char* path, const char* value) {
+      _application.getAllConfig([&] (const toolbox::strref& path, const toolbox::strref& value) {
         body.write(path);
         body.write(iot_core::ConfigParser::SEPARATOR);
         body.write(value);
@@ -287,7 +287,7 @@ public:
         return;
       }
 
-      _application.getConfig(category.cstr(), [&] (const char* name, const char* value) {
+      _application.getConfig(category, [&] (const toolbox::strref& name, const toolbox::strref& value) {
         body.write(name);
         body.write(iot_core::ConfigParser::SEPARATOR);
         body.write(value);
@@ -302,7 +302,7 @@ public:
 
       iot_core::ConfigParser config {const_cast<char*>(body)};
 
-      if (_application.configure(category.cstr(), config)) {
+      if (_application.configure(category, config)) {
         response
           .code(ResponseCode::Ok)
           .contentType(ContentType::TextPlain)

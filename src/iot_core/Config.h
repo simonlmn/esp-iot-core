@@ -19,7 +19,7 @@ public:
 
   ConfigParser(char* config) : _config(config) {}
   
-  bool parse(std::function<bool(char* name, const char* value)> processEntry) const override {
+  bool parse(std::function<bool(const toolbox::strref& name, const toolbox::strref& value)> processEntry) const override {
     if (_config == nullptr) {
       return false;
     }
@@ -35,7 +35,7 @@ public:
 
       *separator = '\0';
       *end = '\0';
-      bool success = processEntry(start, separator + 1);
+      bool success = processEntry(toolbox::strref(start), toolbox::strref(separator + 1));
       *separator = SEPARATOR;
       *end = END;
         
@@ -86,10 +86,10 @@ void writeConfigFile(const char* filename, IConfigurable* configurable) {
   auto configFile = LittleFS.open(filename, "w");
   if (configFile) {
     configFile.write(CONFIG_FILE_HEADER);
-    configurable->getConfig([&] (const char* name, const char* value) {
-        configFile.write(name);
+    configurable->getConfig([&] (const toolbox::strref& name, const toolbox::strref& value) {
+        configFile.write(name.cstr());
         configFile.write(ConfigParser::SEPARATOR);
-        configFile.write(value);
+        configFile.write(value.cstr());
         configFile.write(ConfigParser::END);
     });
     configFile.close();

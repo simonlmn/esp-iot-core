@@ -59,10 +59,10 @@ class LogService;
 
 class Logger final {
   mutable LogService* _service;
-  const char* _category;
+  toolbox::strref _category;
 
 public:
-  Logger(LogService& service, const char* category) : _service(&service), _category(category) {}
+  Logger(LogService& service, const toolbox::strref& category) : _service(&service), _category(category) {}
 
   template<typename T>
   void log(T message) const;
@@ -91,19 +91,19 @@ public:
 class LogService final {
   static const LogLevel DEFAULT_LOG_LEVEL = LogLevel::Info;
   LogLevel _initialLogLevel = DEFAULT_LOG_LEVEL;
-  ConstStrMap<LogLevel> _logLevels = {};
   Time const& _uptime;
+  std::map<toolbox::strref, LogLevel> _logLevels;
   std::vector<ILogSink*> _sinks;
 
   template<typename T>
-  void logInternal(LogLevel level, const char* category, T message) {
+  void logInternal(LogLevel level, const toolbox::strref& category, T message) {
     beginLogEntry(level, category);
     g_logEntry.length += toolbox::strref(message).copy(g_logEntry.buffer + g_logEntry.length, MAX_LOG_ENTRY_LENGTH - g_logEntry.length, true);
     commitLogEntry(level);
   }
 
-  void beginLogEntry(LogLevel level, const char* category) {
-    size_t actualLength = snprintf_P(g_logEntry.buffer, MAX_LOG_ENTRY_LENGTH, PSTR("[%s|%s|%s] "), _uptime.format(), category, logLevelToString(level).cstr());
+  void beginLogEntry(LogLevel level, const toolbox::strref& category) {
+    size_t actualLength = snprintf_P(g_logEntry.buffer, MAX_LOG_ENTRY_LENGTH, PSTR("[%s|%s|%s] "), _uptime.format(), category.cstr(), logLevelToString(level).cstr());
     g_logEntry.length = std::min(actualLength, MAX_LOG_ENTRY_LENGTH);
   }
 
@@ -125,9 +125,9 @@ class LogService final {
   }
 
 public:
-  explicit LogService(Time const& uptime) : _uptime(uptime), _sinks() {}
+  explicit LogService(Time const& uptime) : _uptime(uptime), _logLevels(), _sinks() {}
 
-  Logger logger(const char* category) {
+  Logger logger(const toolbox::strref& category) {
     return {*this, category};
   }
 
@@ -139,7 +139,7 @@ public:
     _initialLogLevel = level;
   }
 
-  LogLevel logLevel(const char* category) const {
+  LogLevel logLevel(const toolbox::strref& category) const {
     auto entry = _logLevels.find(category);
     if (entry == _logLevels.end()) {
       return _initialLogLevel;
@@ -148,32 +148,32 @@ public:
     }
   }
 
-  const ConstStrMap<LogLevel>& logLevels() const {
+  const std::map<toolbox::strref, LogLevel>& logLevels() const {
     return _logLevels;
   }
 
-  void logLevel(const char* category, LogLevel level) {
-    _logLevels[category] = level;
+  void logLevel(const toolbox::strref& category, LogLevel level) {
+    _logLevels[category.materialize()] = level;
   }
 
-  void clearLogLevel(const char* category) {
+  void clearLogLevel(const toolbox::strref& category) {
     _logLevels.erase(category);
   }
 
   template<typename T>
-  void log(const char* category, T message) {
+  void log(const toolbox::strref& category, T message) {
     logInternal(LogLevel::None, category, message);
   }
 
   template<typename T, std::enable_if_t<!std::is_invocable<T>::value, bool> = true>
-  void log(LogLevel level, const char* category, T message) {
+  void log(LogLevel level, const toolbox::strref& category, T message) {
     if (level <= logLevel(category)) {
       logInternal(level, category, message);
     }
   };
 
   template<typename T, std::enable_if_t<std::is_invocable<T>::value, bool> = true>
-  void log(LogLevel level, const char* category, T messageFunction) {
+  void log(LogLevel level, const toolbox::strref& category, T messageFunction) {
     if (level <= logLevel(category)) {
       logInternal(level, category, messageFunction());
     }
